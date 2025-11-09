@@ -32,12 +32,14 @@
 - [x] **環境変数設定**
   - [x] .env.example ファイル作成
   - [x] .env.local ファイル作成
-  - [ ] Supabase 環境変数設定（後で値を追加）
-  - [ ] NextAuth 環境変数設定（後で値を追加）
+  - [x] Supabase 環境変数設定（完了）
+  - [x] NextAuth 環境変数設定（NEXTAUTH_SECRET生成完了、Google OAuth待ち）
   - [x] .gitignore に .env.local 追加確認
+  - [x] 環境変数設定ガイド作成（docs/env-setup-guide.md）
+  - [x] 必要なパッケージインストール（next-auth, @supabase/supabase-js, @supabase/ssr, zod）
   - 担当者: Claude
   - 期限:
-  - ステータス: 完了（値は後で設定）
+  - ステータス: 完了（Google OAuthは手動設定が必要）
 
 - [ ] **Supabase プロジェクトセットアップ**
   - [ ] Supabaseプロジェクト作成

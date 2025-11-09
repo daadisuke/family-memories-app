@@ -227,12 +227,13 @@ A: [API仕様書](./api-spec.md)の形式に従って、[開発ワークフロ�
 - [Supabase Documentation](https://supabase.com/docs)
 - [NextAuth.js Documentation](https://next-auth.js.org)
 - [Vercel Documentation](https://vercel.com/docs)
+- [shadcn/ui Documentation](https://ui.shadcn.com)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ### プロジェクトリソース
 
 - GitHubリポジトリ: https://github.com/daadisuke/family-memories-app
-- Vercel Dashboard: (追加予定)
+- Vercel Dashboard: https://vercel.com/daadisukes-projects
 - Supabase Dashboard: https://supabase.com/dashboard/project/qewanlwjaounegwexnpq
 
 ---
