@@ -41,25 +41,29 @@
   - 期限:
   - ステータス: 完了（Google OAuthは手動設定が必要）
 
-- [ ] **Supabase プロジェクトセットアップ**
-  - [ ] Supabaseプロジェクト作成
-  - [ ] データベース初期化
-  - [ ] テーブル作成（users, families, photos, accounts, sessions）
-  - [ ] RLSポリシー設定
-  - [ ] Storageバケット作成（photos）
-  - [ ] 環境変数設定
-  - 担当者:
+- [x] **Supabase プロジェクトセットアップ**
+  - [x] Supabaseプロジェクト作成
+  - [x] データベース初期化
+  - [x] テーブル作成（users, families, photos, accounts, sessions）
+  - [x] RLSポリシー設定
+  - [x] Storageバケット作成（photos）
+  - [x] Storage RLSポリシー設定
+  - [x] シードデータ投入（テスト家族グループ）
+  - [x] 環境変数設定
+  - 担当者: Claude + User
   - 期限:
-  - 備考: Supabase MCPを使用、docs/database-schema.md参照
+  - ステータス: 完了
+  - 備考: SQL Editorでschema.sql実行完了、photosバケット作成完了、Storage RLSポリシー設定完了
 
-- [ ] **Vercel プロジェクト連携**
-  - [ ] Vercelプロジェクト作成
-  - [ ] GitHubリポジトリ連携
-  - [ ] 環境変数設定（本番・プレビュー）
-  - [ ] 自動デプロイ確認
-  - 担当者:
+- [x] **Vercel プロジェクト連携**
+  - [x] Vercelプロジェクト作成
+  - [x] GitHubリポジトリ連携
+  - [x] 環境変数設定（本番・プレビュー）
+  - [x] 自動デプロイ確認
+  - 担当者: Claude
   - 期限:
-  - 備考: Vercel MCPを使用
+  - ステータス: 完了
+  - 備考: プロジェクト作成完了、GitHub自動デプロイ設定完了、環境変数設定完了（NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET）、本番URL: https://family-memories-app-phi.vercel.app
 
 ### 認証機能
 
