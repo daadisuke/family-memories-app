@@ -1,4 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Family Memories App
+
+A family photo management web application that allows families to organize, share, and search photos using AI-powered tagging.
+
+## Production URL
+
+🚀 **Live App**: [https://family-memories-app-phi.vercel.app](https://family-memories-app-phi.vercel.app)
+
+## Technology Stack
+
+- **Frontend**: Next.js 16 with App Router, TypeScript, Tailwind CSS
+- **Backend**: Next.js Route Handlers (REST API)
+- **Database**: Supabase PostgreSQL with RLS
+- **Storage**: Supabase Storage
+- **Authentication**: NextAuth.js with Google OAuth
+- **Deployment**: Vercel
 
 ## Getting Started
 
@@ -29,8 +44,22 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Comprehensive project documentation is available in the `/docs` directory:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Requirements](./docs/requirement.md) - Full requirements and user stories
+- [Setup Guide](./docs/setup.md) - Initial setup instructions
+- [Database Schema](./docs/database-schema.md) - Complete database schema with RLS
+- [API Specification](./docs/api-spec.md) - REST API endpoints
+- [Project Structure](./docs/project-structure.md) - Directory structure guide
+- [Development Workflow](./docs/workflow.md) - Development processes
+- [MCP Guide](./docs/mcp-guide.md) - MCP usage patterns
+- [Tasks](./docs/tasks.md) - Project task management
+
+## Deployment
+
+This project is automatically deployed to Vercel. Every push to the `develop` branch triggers a deployment.
+
+- **Production**: [https://family-memories-app-phi.vercel.app](https://family-memories-app-phi.vercel.app)
+- **Dashboard**: [Vercel Project](https://vercel.com/daadisukes-projects/family-memories-app)
