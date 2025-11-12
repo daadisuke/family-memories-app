@@ -109,15 +109,16 @@
 
 ### データベース設計
 
-- [ ] **データベーススキーマ実装**
+- [x] **データベーススキーマ実装**
   - [x] docs/sql/schema.sql 作成
-  - [ ] Supabase プロジェクト作成（要手動作業）
-  - [ ] Supabase SQL Editor で schema.sql 実行（要手動作業）
-  - [ ] スキーマ動作確認（Supabase MCP使用）
+  - [x] Supabase プロジェクト作成
+  - [x] Supabase SQL Editor で schema.sql 実行
+  - [x] スキーマ動作確認
+  - [x] データベースユーティリティ関数作成（lib/db）
   - 担当者: Claude
   - 期限:
-  - ステータス: SQL作成完了、Supabase実行待ち
-  - 備考: docs/database-schema.md参照、schema.sqlには全テーブル・RLS・インデックスが含まれています
+  - ステータス: 完了
+  - 備考: 「Supabase プロジェクトセットアップ」タスクで既に実行済み。lib/db/families.ts, lib/db/users.ts でデータベース操作を抽象化、API routesをリファクタリング完了
 
 - [x] **シードデータ作成（オプション）**
   - [x] docs/sql/seed.sql 作成
