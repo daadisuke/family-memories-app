@@ -68,6 +68,7 @@ export async function getFamilyMembers(
 
 /**
  * Create a new family
+ * Note: created_by parameter kept for future use when column is added to database
  */
 export async function createFamily(
   name: string,
@@ -77,14 +78,15 @@ export async function createFamily(
     .from("families")
     .insert({
       name,
-      created_by: createdBy,
+      // TODO: Uncomment when created_by column is added via migration
+      // created_by: createdBy,
     })
     .select()
     .single();
 
   if (familyError) {
     console.error("Error creating family:", familyError);
-    return { family: null, error: "家族グループの作成に失敗しました" };
+    return { family: null, error: familyError.message || "家族グループの作成に失敗しました" };
   }
 
   return { family, error: null };
