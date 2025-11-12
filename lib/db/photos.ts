@@ -1,0 +1,224 @@
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);
+
+export interface Photo {
+  id: string;
+  user_id: string;
+  family_id: string;
+  storage_path: string;
+  file_name: string;
+  file_size: number | null;
+  mime_type: string | null;
+  width: number | null;
+  height: number | null;
+  uploaded_at: string;
+  taken_at: string | null;
+  location: any | null;
+  tags: string[];
+  ai_processed: boolean;
+  ai_processed_at: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePhotoData {
+  userId: string;
+  familyId: string;
+  storagePath: string;
+  fileName: string;
+  fileSize?: number;
+  mimeType?: string;
+  width?: number;
+  height?: number;
+  takenAt?: Date;
+  location?: any;
+  description?: string;
+}
+
+/**
+ * Create a new photo record
+ */
+export async function createPhoto(
+  data: CreatePhotoData
+): Promise<{ photo: Photo | null; error: string | null }> {
+  const { data: photo, error } = await supabase
+    .from("photos")
+    .insert({
+      user_id: data.userId,
+      family_id: data.familyId,
+      storage_path: data.storagePath,
+      file_name: data.fileName,
+      file_size: data.fileSize || null,
+      mime_type: data.mimeType || null,
+      width: data.width || null,
+      height: data.height || null,
+      taken_at: data.takenAt?.toISOString() || null,
+      location: data.location || null,
+      description: data.description || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating photo:", error);
+    return { photo: null, error: "写真情報の保存に失敗しました" };
+  }
+
+  return { photo, error: null };
+}
+
+/**
+ * Get photo by ID
+ */
+export async function getPhotoById(photoId: string): Promise<Photo | null> {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("id", photoId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching photo:", error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Get photos by family ID with pagination
+ */
+export async function getPhotosByFamilyId(
+  familyId: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: "uploaded_at" | "taken_at" | "created_at";
+    order?: "asc" | "desc";
+  }
+): Promise<Photo[]> {
+  const limit = options?.limit || 50;
+  const offset = options?.offset || 0;
+  const sortBy = options?.sortBy || "uploaded_at";
+  const order = options?.order || "desc";
+
+  const { data, error } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("family_id", familyId)
+    .order(sortBy, { ascending: order === "asc" })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error("Error fetching photos:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get photos by user ID
+ */
+export async function getPhotosByUserId(userId: string): Promise<Photo[]> {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("user_id", userId)
+    .order("uploaded_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching user photos:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Update photo metadata
+ */
+export async function updatePhoto(
+  photoId: string,
+  updates: {
+    description?: string;
+    tags?: string[];
+    takenAt?: Date;
+    location?: any;
+    aiProcessed?: boolean;
+  }
+): Promise<{ success: boolean; error: string | null }> {
+  const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
+
+  if (updates.description !== undefined) updateData.description = updates.description;
+  if (updates.tags !== undefined) updateData.tags = updates.tags;
+  if (updates.takenAt !== undefined) updateData.taken_at = updates.takenAt.toISOString();
+  if (updates.location !== undefined) updateData.location = updates.location;
+  if (updates.aiProcessed !== undefined) {
+    updateData.ai_processed = updates.aiProcessed;
+    if (updates.aiProcessed) {
+      updateData.ai_processed_at = new Date().toISOString();
+    }
+  }
+
+  const { error } = await supabase
+    .from("photos")
+    .update(updateData)
+    .eq("id", photoId);
+
+  if (error) {
+    console.error("Error updating photo:", error);
+    return { success: false, error: "写真情報の更新に失敗しました" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Delete photo
+ */
+export async function deletePhoto(
+  photoId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { error } = await supabase.from("photos").delete().eq("id", photoId);
+
+  if (error) {
+    console.error("Error deleting photo:", error);
+    return { success: false, error: "写真の削除に失敗しました" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Search photos by tags
+ */
+export async function searchPhotosByTags(
+  familyId: string,
+  tags: string[]
+): Promise<Photo[]> {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("family_id", familyId)
+    .contains("tags", tags)
+    .order("uploaded_at", { ascending: false });
+
+  if (error) {
+    console.error("Error searching photos by tags:", error);
+    return [];
+  }
+
+  return data || [];
+}
