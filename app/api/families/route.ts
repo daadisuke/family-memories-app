@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+import {
+  createFamily,
+  updateUserFamily,
+  getFamilyById,
+  getFamilyMembers,
+  deleteFamily,
+} from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
@@ -47,35 +42,30 @@ export async function POST(request: Request) {
     }
 
     // Create new family group
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .insert({
-        name,
-        created_by: session.user.id,
-      })
-      .select()
-      .single();
+    const { family, error: familyError } = await createFamily(
+      name,
+      session.user.id
+    );
 
-    if (familyError) {
-      console.error("Error creating family:", familyError);
+    if (familyError || !family) {
       return NextResponse.json(
-        { error: "InternalServerError", message: "家族グループの作成に失敗しました" },
+        { error: "InternalServerError", message: familyError || "家族グループの作成に失敗しました" },
         { status: 500 }
       );
     }
 
     // Update user's family_id
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ family_id: family.id, role: "admin" })
-      .eq("id", session.user.id);
+    const { success, error: updateError } = await updateUserFamily(
+      session.user.id,
+      family.id,
+      "admin"
+    );
 
-    if (updateError) {
-      console.error("Error updating user:", updateError);
+    if (!success) {
       // Rollback: delete the family
-      await supabase.from("families").delete().eq("id", family.id);
+      await deleteFamily(family.id);
       return NextResponse.json(
-        { error: "InternalServerError", message: "ユーザー情報の更新に失敗しました" },
+        { error: "InternalServerError", message: updateError || "ユーザー情報の更新に失敗しました" },
         { status: 500 }
       );
     }
@@ -99,7 +89,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -118,14 +108,9 @@ export async function GET(request: Request) {
     }
 
     // Get family information
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .select("*")
-      .eq("id", session.user.familyId)
-      .single();
+    const family = await getFamilyById(session.user.familyId);
 
-    if (familyError || !family) {
-      console.error("Error fetching family:", familyError);
+    if (!family) {
       return NextResponse.json(
         { error: "NotFound", message: "家族グループが見つかりません" },
         { status: 404 }
@@ -133,25 +118,14 @@ export async function GET(request: Request) {
     }
 
     // Get family members
-    const { data: members, error: membersError } = await supabase
-      .from("users")
-      .select("id, name, email, image, role, created_at")
-      .eq("family_id", session.user.familyId);
-
-    if (membersError) {
-      console.error("Error fetching members:", membersError);
-      return NextResponse.json(
-        { error: "InternalServerError", message: "メンバー情報の取得に失敗しました" },
-        { status: 500 }
-      );
-    }
+    const members = await getFamilyMembers(session.user.familyId);
 
     return NextResponse.json({
       family: {
         id: family.id,
         name: family.name,
         createdAt: family.created_at,
-        members: members || [],
+        members,
       },
     });
   } catch (error) {
