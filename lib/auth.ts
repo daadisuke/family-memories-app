@@ -120,9 +120,22 @@ export const authOptions: NextAuthOptions = {
       }
 
       // セッション更新時（例: family作成後）
-      if (trigger === 'update' && session) {
-        if (session.familyId) {
+      if (trigger === 'update') {
+        // If familyId is provided in the session update, use it
+        if (session?.familyId) {
           token.familyId = session.familyId;
+        } else {
+          // Otherwise, fetch the latest data from database
+          const { data: userData } = await supabaseAdmin
+            .from('users')
+            .select('family_id, role')
+            .eq('id', token.id as string)
+            .single();
+
+          if (userData) {
+            token.familyId = userData.family_id;
+            token.role = userData.role;
+          }
         }
       }
 

@@ -10,6 +10,7 @@ export default function OnboardingPage() {
   const [familyName, setFamilyName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     // Redirect if user already has a family
@@ -38,14 +39,25 @@ export default function OnboardingPage() {
         throw new Error(data.message || "家族グループの作成に失敗しました");
       }
 
-      // Update session with new family ID
-      await update();
+      // Show success message
+      setSuccess(true);
 
-      // Redirect to home
-      router.push("/");
+      // Update session with new family ID
+      // Pass the familyId from the response to update the session
+      if (data.family?.id) {
+        await update({ familyId: data.family.id });
+      } else {
+        // Fallback: trigger session refresh from database
+        await update();
+      }
+
+      // Wait for session to update, then redirect
+      setTimeout(() => {
+        router.push("/");
+        router.refresh(); // Force refresh to ensure new session is loaded
+      }, 1500); // Give user time to see success message
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -91,6 +103,21 @@ export default function OnboardingPage() {
             </p>
           </div>
 
+          {success && (
+            <div className="rounded-md bg-green-50 p-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">
+                    作成成功！
+                  </h3>
+                  <div className="mt-2 text-sm text-green-700">
+                    <p>家族グループが作成されました。ホームページに移動します...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="flex">
@@ -107,10 +134,10 @@ export default function OnboardingPage() {
           <div>
             <button
               type="submit"
-              disabled={isLoading || !familyName.trim()}
+              disabled={isLoading || !familyName.trim() || success}
               className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "作成中..." : "家族グループを作成"}
+              {success ? "リダイレクト中..." : isLoading ? "作成中..." : "家族グループを作成"}
             </button>
           </div>
         </form>
