@@ -67,33 +67,36 @@
 
 ### 認証機能
 
-- [ ] **NextAuth.js セットアップ**
-  - [ ] NextAuth.js インストール
-  - [ ] Google OAuth設定
-    - [ ] Google Cloud Consoleでプロジェクト作成
-    - [ ] OAuth 2.0クライアントID作成
-    - [ ] 認証情報を環境変数に設定
-  - [ ] NextAuth設定ファイル作成（app/api/auth/[...nextauth]/route.ts）
-  - [ ] Supabase Adapter設定
-  - 担当者:
+- [x] **NextAuth.js セットアップ**
+  - [x] NextAuth.js インストール
+  - [x] Google OAuth設定
+    - [x] Google Cloud Consoleでプロジェクト作成
+    - [x] OAuth 2.0クライアントID作成
+    - [x] 認証情報を環境変数に設定
+  - [x] NextAuth設定ファイル作成（app/api/auth/[...nextauth]/route.ts）
+  - [x] Supabase Adapter設定
+  - 担当者: Claude
   - 期限:
-  - ステータス: 未着手
+  - ステータス: 完了
+  - 備考: lib/auth.tsでNextAuth設定完了、Supabaseとの連携実装、Google OAuth設定完了
 
-- [ ] **ログインページ実装**
-  - [ ] app/(auth)/login/page.tsx 作成
-  - [ ] Googleログインボタンコンポーネント
-  - [ ] ログイン後のリダイレクト処理
-  - 担当者:
+- [x] **ログインページ実装**
+  - [x] app/(auth)/login/page.tsx 作成
+  - [x] Googleログインボタンコンポーネント
+  - [x] ログイン後のリダイレクト処理
+  - 担当者: Claude
   - 期限:
-  - ステータス: 未着手
+  - ステータス: 完了
+  - 備考: Suspense境界を使用したログインページ実装、エラーハンドリング実装
 
-- [ ] **認証ガード実装**
-  - [ ] middleware.ts で認証チェック
-  - [ ] 未認証時のリダイレクト
-  - [ ] セッション管理
-  - 担当者:
+- [x] **認証ガード実装**
+  - [x] middleware.ts で認証チェック
+  - [x] 未認証時のリダイレクト
+  - [x] セッション管理
+  - 担当者: Claude
   - 期限:
-  - ステータス: 未着手
+  - ステータス: 完了
+  - 備考: Next.js 16のミドルウェア実装、JWT tokenベースの認証、SessionProvider設定完了
 
 - [ ] **初回ログイン処理**
   - [ ] 家族グループ作成フロー
