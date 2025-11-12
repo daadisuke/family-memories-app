@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPhotosByFamilyId } from "@/lib/db";
-import { getPhotoUrl } from "@/lib/storage/photos";
+import { getSignedPhotoUrl } from "@/lib/storage/photos";
 
 export async function GET(request: Request) {
   try {
@@ -35,17 +35,24 @@ export async function GET(request: Request) {
       order,
     });
 
-    const photosWithUrls = photos.map((photo) => ({
-      id: photo.id,
-      fileName: photo.file_name,
-      url: getPhotoUrl(photo.storage_path),
-      uploadedAt: photo.uploaded_at,
-      takenAt: photo.taken_at,
-      width: photo.width,
-      height: photo.height,
-      tags: photo.tags,
-      description: photo.description,
-    }));
+    // Generate signed URLs for all photos
+    const photosWithUrls = await Promise.all(
+      photos.map(async (photo) => {
+        const { url } = await getSignedPhotoUrl(photo.storage_path);
+
+        return {
+          id: photo.id,
+          fileName: photo.file_name,
+          url: url || "", // Use empty string if URL generation fails
+          uploadedAt: photo.uploaded_at,
+          takenAt: photo.taken_at,
+          width: photo.width,
+          height: photo.height,
+          tags: photo.tags,
+          description: photo.description,
+        };
+      })
+    );
 
     return NextResponse.json({
       photos: photosWithUrls,
