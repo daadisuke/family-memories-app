@@ -262,6 +262,16 @@
   - ステータス: 完了
   - 備考: app/(dashboard)/family/page.tsxで家族管理ページ実装完了。メンバー一覧表示（アバター、名前、メール、役割、参加日）、管理者による役割更新（admin/member）、メンバー削除機能（自分以外）実装。app/(dashboard)/layout.tsxにナビゲーションバー追加（レスポンシブ対応、モバイルメニュー含む）。管理者権限チェック実装済み。招待機能UIはプレースホルダーとして配置。ビルド成功（13ページ）
 
+- [x] **家族グループ招待機能**
+  - [x] family_invitationsテーブル作成
+  - [x] 招待データベース関数実装（lib/db/invitations.ts）
+  - [x] 招待API実装（作成・一覧・受諾・削除）
+  - [x] 招待UI実装（メール入力、招待リンク生成・コピー、送信済み招待一覧）
+  - [x] 招待受諾ページ実装（app/(auth)/invite/[token]/page.tsx）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: UUIDトークンベースの招待システム実装完了。docs/sql/migrations/003_create_family_invitations.sqlでテーブル作成（id, family_id, email, token, status, created_by, expires_at）、RLSポリシー設定（管理者のみ作成・削除可能、家族メンバーは閲覧可能）。lib/db/invitations.tsに招待管理関数実装（createInvitation: 7日間有効期限、getInvitationsByFamily, getInvitationByToken, acceptInvitation: メール検証・期限チェック・家族登録、deleteInvitation, cancelInvitation）。API実装（GET/POST/DELETE /api/families/invitations、GET /api/families/invitations/[token]、POST /api/families/invitations/[token]/accept）。app/(dashboard)/family/page.tsxに招待UI追加（メール入力フォーム、招待リンクコピーボタン、送信済み招待一覧表示、期限切れ表示、削除ボタン）。app/(auth)/invite/[token]/page.tsxで招待受諾ページ実装（トークン検証、自動受諾フロー、ログインプロンプト、メール一致確認、期限切れ・使用済みエラー表示）。ビルド成功（16ページ）
+
 ### 写真検索機能
 
 - [x] **検索API実装**

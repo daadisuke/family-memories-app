@@ -20,6 +20,15 @@ interface Family {
   members: FamilyMember[];
 }
 
+interface FamilyInvitation {
+  id: string;
+  email: string;
+  token: string;
+  status: "pending" | "accepted" | "expired" | "cancelled";
+  expires_at: string;
+  created_at: string;
+}
+
 export default function FamilyPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -27,6 +36,12 @@ export default function FamilyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // 招待機能のstate
+  const [invitations, setInvitations] = useState<FamilyInvitation[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const isAdmin = session?.user?.role === "admin";
 
@@ -38,7 +53,10 @@ export default function FamilyPage() {
     }
 
     fetchFamily();
-  }, [status, router]);
+    if (isAdmin) {
+      fetchInvitations();
+    }
+  }, [status, router, isAdmin]);
 
   const fetchFamily = async () => {
     try {
@@ -123,6 +141,98 @@ export default function FamilyPage() {
       // Refresh family data
       await fetchFamily();
       alert("役割を更新しました");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "エラーが発生しました");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      const response = await fetch("/api/families/invitations");
+      const data = await response.json();
+
+      if (response.ok) {
+        setInvitations(data.invitations || []);
+      }
+    } catch (err) {
+      console.error("Error fetching invitations:", err);
+    }
+  };
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) {
+      alert("管理者権限が必要です");
+      return;
+    }
+
+    if (!inviteEmail.trim()) {
+      alert("メールアドレスを入力してください");
+      return;
+    }
+
+    try {
+      setInviteLoading(true);
+      const response = await fetch("/api/families/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "招待の作成に失敗しました");
+      }
+
+      alert("招待を作成しました");
+      setInviteEmail("");
+      await fetchInvitations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "エラーが発生しました");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCopyInviteLink = async (token: string) => {
+    const inviteUrl = `${window.location.origin}/invite/${token}`;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(null), 2000);
+    } catch (err) {
+      alert("クリップボードへのコピーに失敗しました");
+    }
+  };
+
+  const handleDeleteInvitation = async (invitationId: string, email: string) => {
+    if (!isAdmin) {
+      alert("管理者権限が必要です");
+      return;
+    }
+
+    const confirmed = confirm(`${email}への招待を取り消しますか？`);
+    if (!confirmed) return;
+
+    try {
+      setActionLoading(invitationId);
+      const response = await fetch("/api/families/invitations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "招待の削除に失敗しました");
+      }
+
+      alert("招待を削除しました");
+      await fetchInvitations();
     } catch (err) {
       alert(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
@@ -287,29 +397,88 @@ export default function FamilyPage() {
           </div>
         </div>
 
-        {/* Invite Section - Placeholder for future implementation */}
-        <div className="mt-8 rounded-lg bg-white shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            メンバーを招待
-          </h2>
-          <p className="text-gray-600 text-sm mb-4">
-            招待機能は今後実装予定です。
-          </p>
-          <div className="flex items-center space-x-2 opacity-50">
-            <input
-              type="email"
-              placeholder="メールアドレス"
-              disabled
-              className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              disabled
-              className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              招待を送信
-            </button>
+        {/* Invite Section */}
+        {isAdmin && (
+          <div className="mt-8 rounded-lg bg-white shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              メンバーを招待
+            </h2>
+            <form onSubmit={handleSendInvite} className="mb-6">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="メールアドレス"
+                  disabled={inviteLoading}
+                  className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <button
+                  type="submit"
+                  disabled={inviteLoading}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {inviteLoading ? "送信中..." : "招待を送信"}
+                </button>
+              </div>
+            </form>
+
+            {/* Pending Invitations List */}
+            {invitations.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  送信済み招待 ({invitations.filter(inv => inv.status === "pending").length}件)
+                </h3>
+                <div className="space-y-3">
+                  {invitations
+                    .filter((inv) => inv.status === "pending")
+                    .map((invitation) => {
+                      const isExpired = new Date() > new Date(invitation.expires_at);
+                      return (
+                        <div
+                          key={invitation.id}
+                          className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {invitation.email}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {isExpired ? (
+                                <span className="text-red-600">
+                                  期限切れ ({new Date(invitation.expires_at).toLocaleDateString("ja-JP")})
+                                </span>
+                              ) : (
+                                <span>
+                                  有効期限: {new Date(invitation.expires_at).toLocaleDateString("ja-JP")}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleCopyInviteLink(invitation.token)}
+                              disabled={isExpired}
+                              className="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {copiedToken === invitation.token ? "✓ コピー済み" : "リンクをコピー"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteInvitation(invitation.id, invitation.email)}
+                              disabled={actionLoading === invitation.id}
+                              className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === invitation.id ? "処理中..." : "削除"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
