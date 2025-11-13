@@ -141,9 +141,10 @@ export default function PhotosPage() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {photos.map((photo) => (
-          <div
+          <Link
             key={photo.id}
-            className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100"
+            href={`/photos/${photo.id}`}
+            className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer"
           >
             <Image
               src={photo.url}
@@ -152,7 +153,8 @@ export default function PhotosPage() {
               className="object-cover transition-transform duration-200 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
             />
-          </div>
+            <div className="absolute inset-0 bg-black bg-opacity-0 transition-opacity duration-200 group-hover:bg-opacity-20" />
+          </Link>
         ))}
       </div>
 

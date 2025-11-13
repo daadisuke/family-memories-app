@@ -79,13 +79,14 @@ export async function createPhoto(
 }
 
 /**
- * Get photo by ID
+ * Get photo by ID with family verification
  */
-export async function getPhotoById(photoId: string): Promise<Photo | null> {
+export async function getPhotoById(photoId: string, familyId: string): Promise<Photo | null> {
   const { data, error } = await supabase
     .from("photos")
     .select("*")
     .eq("id", photoId)
+    .eq("family_id", familyId)
     .single();
 
   if (error) {
@@ -94,6 +95,43 @@ export async function getPhotoById(photoId: string): Promise<Photo | null> {
   }
 
   return data;
+}
+
+/**
+ * Get adjacent photo IDs for navigation (previous and next)
+ */
+export async function getAdjacentPhotoIds(
+  photoId: string,
+  familyId: string
+): Promise<{ previousId: string | null; nextId: string | null }> {
+  // Get the current photo's upload timestamp
+  const currentPhoto = await getPhotoById(photoId, familyId);
+  if (!currentPhoto) {
+    return { previousId: null, nextId: null };
+  }
+
+  // Get previous photo (older, uploaded before current)
+  const { data: previousPhotos } = await supabase
+    .from("photos")
+    .select("id")
+    .eq("family_id", familyId)
+    .lt("uploaded_at", currentPhoto.uploaded_at)
+    .order("uploaded_at", { ascending: false })
+    .limit(1);
+
+  // Get next photo (newer, uploaded after current)
+  const { data: nextPhotos } = await supabase
+    .from("photos")
+    .select("id")
+    .eq("family_id", familyId)
+    .gt("uploaded_at", currentPhoto.uploaded_at)
+    .order("uploaded_at", { ascending: true })
+    .limit(1);
+
+  return {
+    previousId: previousPhotos && previousPhotos.length > 0 ? previousPhotos[0].id : null,
+    nextId: nextPhotos && nextPhotos.length > 0 ? nextPhotos[0].id : null,
+  };
 }
 
 /**
