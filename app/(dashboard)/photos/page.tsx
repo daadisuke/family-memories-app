@@ -144,7 +144,7 @@ export default function PhotosPage() {
           <Link
             key={photo.id}
             href={`/photos/${photo.id}`}
-            className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer"
+            className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 block"
           >
             <Image
               src={photo.url}
@@ -153,7 +153,6 @@ export default function PhotosPage() {
               className="object-cover transition-transform duration-200 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
             />
-            <div className="absolute inset-0 bg-black bg-opacity-0 transition-opacity duration-200 group-hover:bg-opacity-20" />
           </Link>
         ))}
       </div>
