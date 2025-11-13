@@ -19,9 +19,11 @@ interface Photo {
 }
 
 interface PhotoDetailResponse {
-  photo: Photo;
-  previousPhotoId: string | null;
-  nextPhotoId: string | null;
+  photo?: Photo;
+  previousPhotoId?: string | null;
+  nextPhotoId?: string | null;
+  error?: string;
+  message?: string;
 }
 
 export default function PhotoDetailPage() {
@@ -49,12 +51,14 @@ export default function PhotoDetailPage() {
       const data: PhotoDetailResponse = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "写真の取得に失敗しました");
+        throw new Error(data.error || data.message || "写真の取得に失敗しました");
       }
 
-      setPhoto(data.photo);
-      setPreviousPhotoId(data.previousPhotoId);
-      setNextPhotoId(data.nextPhotoId);
+      if (data.photo) {
+        setPhoto(data.photo);
+        setPreviousPhotoId(data.previousPhotoId || null);
+        setNextPhotoId(data.nextPhotoId || null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
