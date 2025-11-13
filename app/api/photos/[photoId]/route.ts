@@ -6,7 +6,7 @@ import { getSignedPhotoUrl } from "@/lib/storage/photos";
 
 export async function GET(
   request: Request,
-  { params }: { params: { photoId: string } }
+  { params }: { params: Promise<{ photoId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,7 +25,7 @@ export async function GET(
       );
     }
 
-    const { photoId } = params;
+    const { photoId } = await params;
 
     // Get photo details
     const photo = await getPhotoById(photoId, session.user.familyId);
