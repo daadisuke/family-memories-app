@@ -41,7 +41,7 @@ export interface CreatePhotoData {
   mimeType?: string;
   width?: number;
   height?: number;
-  takenAt?: Date;
+  takenAt?: string | Date; // ISO 8601 string or Date object
   location?: any;
   description?: string;
 }
@@ -63,7 +63,11 @@ export async function createPhoto(
       mime_type: data.mimeType || null,
       width: data.width || null,
       height: data.height || null,
-      taken_at: data.takenAt?.toISOString() || null,
+      taken_at: data.takenAt
+        ? typeof data.takenAt === "string"
+          ? data.takenAt
+          : data.takenAt.toISOString()
+        : null,
       location: data.location || null,
       description: data.description || null,
     })
@@ -259,4 +263,105 @@ export async function searchPhotosByTags(
   }
 
   return data || [];
+}
+
+/**
+ * Search photos with multiple criteria
+ */
+export interface SearchCriteria {
+  familyId: string;
+  tags?: string[];
+  dateFrom?: string; // ISO date string
+  dateTo?: string; // ISO date string
+  keyword?: string; // Search in description and filename
+  limit?: number;
+  offset?: number;
+  sortBy?: "uploaded_at" | "taken_at" | "created_at";
+  order?: "asc" | "desc";
+}
+
+export async function searchPhotos(criteria: SearchCriteria): Promise<Photo[]> {
+  const {
+    familyId,
+    tags,
+    dateFrom,
+    dateTo,
+    keyword,
+    limit = 50,
+    offset = 0,
+    sortBy = "uploaded_at",
+    order = "desc",
+  } = criteria;
+
+  let query = supabase.from("photos").select("*").eq("family_id", familyId);
+
+  // Tag search - contains any of the tags
+  if (tags && tags.length > 0) {
+    query = query.contains("tags", tags);
+  }
+
+  // Date range search (taken_at)
+  if (dateFrom) {
+    query = query.gte("taken_at", dateFrom);
+  }
+  if (dateTo) {
+    query = query.lte("taken_at", dateTo);
+  }
+
+  // Keyword search in description and filename
+  if (keyword && keyword.trim()) {
+    // Use OR condition for searching in multiple fields
+    // Note: Supabase/PostgreSQL doesn't directly support OR in client query builder
+    // We'll use textSearch on description and filter filename in application code
+    query = query.or(`description.ilike.%${keyword}%,file_name.ilike.%${keyword}%`);
+  }
+
+  // Apply sorting and pagination
+  query = query.order(sortBy, { ascending: order === "asc" }).range(offset, offset + limit - 1);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error searching photos:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get photo count by search criteria
+ */
+export async function getPhotoCountBySearch(criteria: Omit<SearchCriteria, "limit" | "offset" | "sortBy" | "order">): Promise<number> {
+  const { familyId, tags, dateFrom, dateTo, keyword } = criteria;
+
+  let query = supabase
+    .from("photos")
+    .select("id", { count: "exact", head: true })
+    .eq("family_id", familyId);
+
+  if (tags && tags.length > 0) {
+    query = query.contains("tags", tags);
+  }
+
+  if (dateFrom) {
+    query = query.gte("taken_at", dateFrom);
+  }
+
+  if (dateTo) {
+    query = query.lte("taken_at", dateTo);
+  }
+
+  if (keyword && keyword.trim()) {
+    query = query.or(`description.ilike.%${keyword}%,file_name.ilike.%${keyword}%`);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("Error counting photos:", error);
+    return 0;
+  }
+
+  return count || 0;
 }

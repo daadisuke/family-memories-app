@@ -162,6 +162,16 @@
   - ステータス: 完了
   - 備考: 順次アップロード処理、進捗バーでリアルタイム進捗表示
 
+- [x] **EXIF撮影日取得機能**
+  - [x] exifrライブラリのインストール
+  - [x] EXIFメタデータ抽出ユーティリティ作成（lib/utils/exif.ts）
+  - [x] 撮影日取得ロジック実装（DateTimeOriginal/CreateDate）
+  - [x] アップロードAPI修正（taken_at設定）
+  - [x] データベース関数修正（createPhoto）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: exifr@7.1.3をインストール。lib/utils/exif.tsにextractDateTaken関数とextractGPSLocation関数（今後の実装用）を実装。app/api/photos/upload/route.tsでEXIF撮影日抽出処理追加。lib/db/photos.tsのCreatePhotoDataインターフェースを修正（takenAtがstring | Date型を受け付けるように）。EXIF取得失敗時はuploaded_atがデフォルト値として使用される。ビルド成功（15ページ）
+
 ### 写真ギャラリー表示
 
 - [x] **写真一覧API実装**
@@ -194,6 +204,13 @@
   - ステータス: 完了
   - 備考: キーボードショートカット実装（←→で前後移動、Escでギャラリーに戻る）、レスポンシブデザイン、API endpoint実装
 
+- [x] **写真詳細ページに撮影日表示**
+  - [x] 撮影日時の表示追加
+  - [x] EXIF撮影日がない場合の対応
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/(dashboard)/photos/[photoId]/page.tsxで撮影日時の表示を強化。EXIFから取得した撮影日時には📷アイコンと「(EXIF)」ラベルを追加。撮影日がある場合は「撮影日時」→「アップロード日時」の順で表示。撮影日がない場合は「アップロード日時」のみ表示。日時フォーマットを統一（年月日時分表示）。各項目にアイコンを追加（📷撮影日、⬆️アップロード、📐サイズ）。ビルド成功（15ページ）
+
 ### 動作確認・テスト
 
 - [x] **Next.js DevTools MCPでの動作確認**
@@ -205,21 +222,21 @@
   - ステータス: 完了
   - 備考: 本番ビルド成功、TypeScript型エラー修正完了、ルート構造確認（11ページ）。ミドルウェア→プロキシ移行の警告あり（今後対応予定）
 
-- [ ] **Chrome DevTools MCPでの動作確認**
-  - [ ] ローカル環境での動作確認
-  - [ ] レスポンシブデザイン検証
-  - [ ] Core Web Vitals 計測
-  - [ ] コンソールエラーチェック
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **Chrome DevTools MCPでの動作確認**
+  - [x] ローカル環境での動作確認
+  - [x] レスポンシブデザイン検証（グリッドレイアウト2-5列）
+  - [ ] Core Web Vitals 計測（今後の実装予定）
+  - [x] コンソールエラーチェック
+  - 担当者: Claude + User
+  - ステータス: 完了
+  - 備考: Chrome DevTools MCPを使用した自動検証完了。ログインページの表示確認、コンソールエラーなし（HMRとReact DevToolsのみ）、ネットワークエミュレーション（Fast 4G）で正常動作、プロダクションビルド成功（11ページ）。認証後のページ（写真ギャラリー、写真詳細）の動作は手動確認済み。署名付きURL、画像表示、ナビゲーション機能が正常動作
 
-- [ ] **プレビューデプロイ確認**
-  - [ ] Vercelプレビュー環境での動作確認
-  - [ ] 本番環境変数の動作確認
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **プレビューデプロイ確認**
+  - [x] Vercelプレビュー環境での動作確認
+  - [x] 本番環境変数の動作確認
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: Vercel CLIで検証完了。最新デプロイメント（2時間前）が正常稼働中（Status: Ready）。本番URL: https://family-memories-app-phi.vercel.app。すべての必要な環境変数が設定済み（GOOGLE_CLIENT_ID/SECRET, NEXTAUTH_SECRET, SUPABASE keys）。WebFetchでページロード確認、エラーなし。Next.jsハイドレーション正常。developブランチの最新コミット（写真詳細ページ、MCP検証完了）がデプロイ済み
 
 ---
 
@@ -227,43 +244,43 @@
 
 ### 家族アカウント機能
 
-- [ ] **家族グループ管理API**
-  - [ ] app/api/families/route.ts 作成
-  - [ ] 家族グループ作成
-  - [ ] 家族メンバー一覧取得
-  - [ ] メンバー追加・削除
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **家族グループ管理API**
+  - [x] app/api/families/route.ts 作成
+  - [x] 家族グループ作成
+  - [x] 家族メンバー一覧取得
+  - [x] メンバー追加・削除
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/api/families/route.tsで家族グループ作成（POST）とメンバー一覧取得（GET）を実装済み。app/api/families/members/route.tsでメンバー管理機能実装（GET: メンバー一覧、DELETE: メンバー削除、PATCH: 役割更新）。lib/db/families.tsに管理用ヘルパー関数追加（removeUserFromFamily, updateUserRole, getFamilyMemberById）。管理者権限チェック実装済み。ビルド成功（12ページ）
 
-- [ ] **家族グループ管理UI**
-  - [ ] app/(dashboard)/family/page.tsx 作成
-  - [ ] メンバー一覧表示
-  - [ ] 招待機能
-  - [ ] 権限管理UI
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **家族グループ管理UI**
+  - [x] app/(dashboard)/family/page.tsx 作成
+  - [x] メンバー一覧表示
+  - [ ] 招待機能（今後の実装予定）
+  - [x] 権限管理UI
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/(dashboard)/family/page.tsxで家族管理ページ実装完了。メンバー一覧表示（アバター、名前、メール、役割、参加日）、管理者による役割更新（admin/member）、メンバー削除機能（自分以外）実装。app/(dashboard)/layout.tsxにナビゲーションバー追加（レスポンシブ対応、モバイルメニュー含む）。管理者権限チェック実装済み。招待機能UIはプレースホルダーとして配置。ビルド成功（13ページ）
 
 ### 写真検索機能
 
-- [ ] **検索API実装**
-  - [ ] タグ検索
-  - [ ] 日付範囲検索
-  - [ ] フリーワード検索
-  - [ ] 複合検索
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **検索API実装**
+  - [x] タグ検索
+  - [x] 日付範囲検索
+  - [x] フリーワード検索
+  - [x] 複合検索
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/api/photos/search/route.tsで検索APIエンドポイント実装完了。lib/db/photos.tsにsearchPhotos関数とgetPhotoCountBySearch関数を追加。タグ検索（複数タグAND条件）、日付範囲検索（taken_at基準）、フリーワード検索（description/file_name対象、部分一致）、複合検索（すべての条件を組み合わせ可能）実装。ページネーション対応（limit/offset）、ソート機能（uploaded_at/taken_at/created_at、asc/desc）、検索結果総数取得機能実装。ビルド成功（14ページ）
 
-- [ ] **検索UI実装**
-  - [ ] 検索バーコンポーネント
-  - [ ] フィルターコンポーネント
-  - [ ] 検索結果表示
-  - [ ] 保存した検索条件
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **検索UI実装**
+  - [x] 検索バーコンポーネント
+  - [x] フィルターコンポーネント（タグ、日付範囲）
+  - [x] 検索結果表示
+  - [ ] 保存した検索条件（今後の実装予定）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/(dashboard)/search/page.tsxで検索ページ実装完了。キーワード入力（Enter対応）、タグ入力（カンマ区切り）、日付範囲ピッカー（from/to）、検索・クリアボタン実装。URLクエリパラメータからの自動検索対応。検索結果グリッド表示（レスポンシブ2-5列）、写真にタグバッジ表示、結果件数・検索条件表示、空状態（初期・検索結果なし）実装。Suspense境界でuseSearchParams()ラップ。app/(dashboard)/layout.tsxのナビゲーションに検索リンク追加（🔍アイコン）。ビルド成功（15ページ）
 
 ### レスポンシブデザイン最適化
 

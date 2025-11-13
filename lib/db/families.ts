@@ -128,3 +128,66 @@ export async function deleteFamily(
 
   return { success: true, error: null };
 }
+
+/**
+ * Remove user from family (admin only)
+ */
+export async function removeUserFromFamily(
+  userId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const { error } = await supabase
+    .from("users")
+    .update({ family_id: null, role: "member" })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Error removing user from family:", error);
+    return { success: false, error: "メンバーの削除に失敗しました" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Update user role in family (admin only)
+ */
+export async function updateUserRole(
+  userId: string,
+  role: string
+): Promise<{ success: boolean; error: string | null }> {
+  // Validate role
+  const validRoles = ["admin", "member"];
+  if (!validRoles.includes(role)) {
+    return { success: false, error: "無効な役割です" };
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ role })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Error updating user role:", error);
+    return { success: false, error: "役割の更新に失敗しました" };
+  }
+
+  return { success: true, error: null };
+}
+
+/**
+ * Get family member by ID (with family-specific fields)
+ */
+export async function getFamilyMemberById(userId: string): Promise<FamilyMember | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, email, name, image, role, created_at")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching family member:", error);
+    return null;
+  }
+
+  return data;
+}

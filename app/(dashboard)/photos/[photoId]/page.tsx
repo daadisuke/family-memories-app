@@ -251,25 +251,44 @@ export default function PhotoDetailPage() {
                   <dd className="mt-1 text-sm text-gray-900 break-all">{photo.fileName}</dd>
                 </div>
 
+                {/* 撮影日時（EXIF情報から取得） */}
                 {photo.takenAt && (
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">撮影日時</dt>
+                    <dt className="text-sm font-medium text-gray-500">
+                      📷 撮影日時
+                      <span className="ml-1 text-xs text-gray-400">(EXIF)</span>
+                    </dt>
                     <dd className="mt-1 text-sm text-gray-900">
-                      {new Date(photo.takenAt).toLocaleString("ja-JP")}
+                      {new Date(photo.takenAt).toLocaleString("ja-JP", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </dd>
                   </div>
                 )}
 
+                {/* アップロード日時 */}
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">アップロード日時</dt>
+                  <dt className="text-sm font-medium text-gray-500">
+                    ⬆️ アップロード日時
+                  </dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {new Date(photo.uploadedAt).toLocaleString("ja-JP")}
+                    {new Date(photo.uploadedAt).toLocaleString("ja-JP", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </dd>
                 </div>
 
                 {photo.width && photo.height && (
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">サイズ</dt>
+                    <dt className="text-sm font-medium text-gray-500">📐 サイズ</dt>
                     <dd className="mt-1 text-sm text-gray-900">
                       {photo.width} × {photo.height} px
                     </dd>
