@@ -5,6 +5,20 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+// Dynamically import map component with SSR disabled
+const PhotoLocationMap = dynamic(
+  () => import("@/components/maps/PhotoLocationMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[300px] w-full bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+        <p className="text-gray-500">地図を読み込んでいます...</p>
+      </div>
+    ),
+  }
+);
 
 interface Photo {
   id: string;
@@ -16,6 +30,7 @@ interface Photo {
   height: number | null;
   tags: string[] | null;
   description: string | null;
+  location: { latitude: number; longitude: number } | null;
 }
 
 interface PhotoDetailResponse {
@@ -319,6 +334,25 @@ export default function PhotoDetailPage() {
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Location Map */}
+            {photo.location && (
+              <div className="rounded-lg bg-white p-6 shadow">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  📍 撮影場所
+                  <span className="ml-2 text-xs font-normal text-gray-400">(EXIF)</span>
+                </h2>
+                <PhotoLocationMap
+                  latitude={photo.location.latitude}
+                  longitude={photo.location.longitude}
+                  photoName={photo.fileName}
+                  height="300px"
+                />
+                <p className="mt-3 text-xs text-gray-500 text-center">
+                  {photo.location.latitude.toFixed(6)}, {photo.location.longitude.toFixed(6)}
+                </p>
               </div>
             )}
 

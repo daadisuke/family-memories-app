@@ -57,6 +57,7 @@ export async function GET(
         height: photo.height,
         tags: photo.tags,
         description: photo.description,
+        location: photo.location,
       },
       previousPhotoId: previousId,
       nextPhotoId: nextId,

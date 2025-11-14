@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createPhoto } from "@/lib/db";
 import { uploadPhoto, validatePhotoFile } from "@/lib/storage/photos";
-import { extractDateTaken } from "@/lib/utils/exif";
+import { extractDateTaken, extractGPSLocation } from "@/lib/utils/exif";
 
 export async function POST(request: Request) {
   try {
@@ -42,8 +42,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extract EXIF date taken (撮影日を取得)
-    const takenAt = await extractDateTaken(file);
+    // Extract EXIF metadata (撮影日と位置情報を取得)
+    const [takenAt, location] = await Promise.all([
+      extractDateTaken(file),
+      extractGPSLocation(file),
+    ]);
 
     // Upload to storage
     const { path, error: uploadError } = await uploadPhoto(
@@ -68,6 +71,7 @@ export async function POST(request: Request) {
       fileSize: file.size,
       mimeType: file.type,
       takenAt: takenAt || undefined, // EXIFから取得した撮影日、取得できない場合はundefined
+      location: location || undefined, // EXIFから取得した位置情報、取得できない場合はundefined
     });
 
     if (dbError || !photo) {

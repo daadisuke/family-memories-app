@@ -292,6 +292,36 @@
   - ステータス: 完了
   - 備考: app/(dashboard)/search/page.tsxで検索ページ実装完了。キーワード入力（Enter対応）、タグ入力（カンマ区切り）、日付範囲ピッカー（from/to）、検索・クリアボタン実装。URLクエリパラメータからの自動検索対応。検索結果グリッド表示（レスポンシブ2-5列）、写真にタグバッジ表示、結果件数・検索条件表示、空状態（初期・検索結果なし）実装。Suspense境界でuseSearchParams()ラップ。app/(dashboard)/layout.tsxのナビゲーションに検索リンク追加（🔍アイコン）。ビルド成功（15ページ）
 
+### 位置情報・マップ表示機能
+
+- [x] **GPS位置情報抽出機能**
+  - [x] 写真アップロード時のGPS抽出実装（app/api/photos/upload/route.ts）
+  - [x] データベースインターフェース更新（lib/db/photos.ts: CreatePhotoData.location追加）
+  - [x] exifr既存関数（extractGPSLocation）の活用
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/api/photos/upload/route.tsでextractGPSLocation関数を並列実行（Promise.all）、EXIFから取得した位置情報をcreatePhoto関数に渡すように実装。lib/db/photos.tsのCreatePhotoDataインターフェースは既にlocation対応済み（location?: any）。photosテーブルのlocation JSONB列を使用。{ latitude: number, longitude: number }形式でデータ保存。GPS情報がない場合はundefinedでデータベースにnullが保存される
+
+- [x] **地図表示機能（写真詳細ページ）**
+  - [x] 地図ライブラリインストール（react-leaflet, leaflet, @types/leaflet）
+  - [x] 地図コンポーネント作成（components/maps/PhotoLocationMap.tsx）
+  - [x] 写真詳細ページに地図セクション追加（app/(dashboard)/photos/[photoId]/page.tsx）
+  - [x] Leaflet CSSインポート（コンポーネント内でインポート）
+  - [x] 位置情報の有無による条件表示
+  - [x] 写真詳細APIにlocation情報追加（app/api/photos/[photoId]/route.ts）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: react-leaflet@4.2.1、leaflet@1.9.4、@types/leaflet@1.9.15をインストール。components/maps/PhotoLocationMap.tsxで地図コンポーネント実装（OpenStreetMapタイル使用、マーカー＋ポップアップ表示、scrollWheelZoom無効化、デフォルトアイコン修正）。app/(dashboard)/photos/[photoId]/page.tsxで動的インポート（ssr: false）実装、Photoインターフェースにlocation追加、地図セクション条件付き表示（📍アイコン、(EXIF)ラベル、座標表示）。app/api/photos/[photoId]/route.tsでレスポンスにlocation追加。ビルド成功（16ページ）
+
+- [ ] **地図ギャラリービュー（将来実装）**
+  - [ ] ギャラリー全体を地図表示（app/(dashboard)/photos/map/page.tsx）
+  - [ ] マーカークラスタリング機能
+  - [ ] 地図上で写真クリック→詳細表示
+  - [ ] 日付・タグによる地図フィルタリング
+  - 担当者: Claude
+  - ステータス: Phase 3-4予定
+  - 備考: 全写真を1つの地図にマーカー表示。「この場所の近くで撮影」検索機能の実装
+
 ### レスポンシブデザイン最適化
 
 - [ ] **モバイル対応**
