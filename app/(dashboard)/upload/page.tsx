@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isVideoFile } from "@/lib/utils/file-validation";
+import { useSession } from "next-auth/react";
+import { isVideoFile, validatePhotoFile } from "@/lib/utils/file-validation";
 import { extractVideoMetadata, formatVideoDuration } from "@/lib/utils/video";
+import { supabaseClient } from "@/lib/supabase-client";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -13,6 +15,7 @@ interface FileWithPreview extends File {
 
 export default function UploadPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -71,6 +74,11 @@ export default function UploadPage() {
       return;
     }
 
+    if (!session?.user?.id || !session?.user?.familyId) {
+      setError("ログインが必要です");
+      return;
+    }
+
     setUploading(true);
     setError("");
     setProgress(0);
@@ -79,36 +87,63 @@ export default function UploadPage() {
       let completed = 0;
 
       for (const file of selectedFiles) {
-        const formData = new FormData();
-        formData.append("file", file);
+        // Validate file
+        const validation = validatePhotoFile(file);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
 
-        // If it's a video, extract and append metadata
+        // Generate unique filename and storage path
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const storagePath = `${session.user.familyId}/${session.user.id}/${fileName}`;
+
+        // Upload directly to Supabase Storage from client
+        const { error: uploadError } = await supabaseClient.storage
+          .from("photos")
+          .upload(storagePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw new Error("ファイルのアップロードに失敗しました");
+        }
+
+        // Extract video metadata if it's a video
+        let metadata: any = {};
         if (file.isVideo) {
           try {
-            const metadata = await extractVideoMetadata(file);
-            if (metadata.duration) {
-              formData.append("videoDuration", metadata.duration.toString());
-            }
-            if (metadata.width) {
-              formData.append("videoWidth", metadata.width.toString());
-            }
-            if (metadata.height) {
-              formData.append("videoHeight", metadata.height.toString());
-            }
+            const videoMeta = await extractVideoMetadata(file);
+            metadata = {
+              videoDuration: videoMeta.duration || undefined,
+              width: videoMeta.width || undefined,
+              height: videoMeta.height || undefined,
+            };
           } catch (error) {
-            console.error("Failed to extract video metadata for upload:", error);
-            // Continue with upload even if metadata extraction fails
+            console.error("Failed to extract video metadata:", error);
           }
         }
 
-        const response = await fetch("/api/photos/upload", {
+        // Create database record
+        const response = await fetch("/api/photos/upload-url", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            storagePath,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            ...metadata,
+          }),
         });
 
         if (!response.ok) {
+          // If DB creation fails, try to delete the uploaded file
+          await supabaseClient.storage.from("photos").remove([storagePath]);
           const data = await response.json();
-          throw new Error(data.message || "アップロードに失敗しました");
+          throw new Error(data.message || "情報の保存に失敗しました");
         }
 
         completed++;
