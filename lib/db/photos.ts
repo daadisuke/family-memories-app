@@ -30,6 +30,9 @@ export interface Photo {
   description: string | null;
   created_at: string;
   updated_at: string;
+  video_duration: number | null; // Duration in seconds (for videos)
+  video_codec: string | null; // Video codec (for videos)
+  thumbnail_path: string | null; // Thumbnail path (for videos)
 }
 
 export interface CreatePhotoData {
@@ -44,6 +47,9 @@ export interface CreatePhotoData {
   takenAt?: string | Date; // ISO 8601 string or Date object
   location?: any;
   description?: string;
+  videoDuration?: number; // Duration in seconds (for videos)
+  videoCodec?: string; // Video codec (for videos)
+  thumbnailPath?: string; // Thumbnail path (for videos)
 }
 
 /**
@@ -70,6 +76,9 @@ export async function createPhoto(
         : null,
       location: data.location || null,
       description: data.description || null,
+      video_duration: data.videoDuration || null,
+      video_codec: data.videoCodec || null,
+      thumbnail_path: data.thumbnailPath || null,
     })
     .select()
     .single();
@@ -228,19 +237,37 @@ export async function updatePhoto(
 }
 
 /**
- * Delete photo
+ * Delete photo with permission check
+ * All family members can delete any photo in the family
  */
 export async function deletePhoto(
-  photoId: string
-): Promise<{ success: boolean; error: string | null }> {
-  const { error } = await supabase.from("photos").delete().eq("id", photoId);
+  photoId: string,
+  familyId: string
+): Promise<{ photo: Photo | null; error: string | null }> {
+  // First verify the photo exists and belongs to the family
+  const { data: existingPhoto, error: fetchError } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("id", photoId)
+    .eq("family_id", familyId)
+    .single();
 
-  if (error) {
-    console.error("Error deleting photo:", error);
-    return { success: false, error: "写真の削除に失敗しました" };
+  if (fetchError || !existingPhoto) {
+    return { photo: null, error: "写真が見つかりませんでした" };
   }
 
-  return { success: true, error: null };
+  // Delete the photo (all family members can delete)
+  const { error: deleteError } = await supabase
+    .from("photos")
+    .delete()
+    .eq("id", photoId);
+
+  if (deleteError) {
+    console.error("Error deleting photo:", deleteError);
+    return { photo: null, error: "写真の削除に失敗しました" };
+  }
+
+  return { photo: existingPhoto, error: null };
 }
 
 /**
@@ -364,4 +391,95 @@ export async function getPhotoCountBySearch(criteria: Omit<SearchCriteria, "limi
   }
 
   return count || 0;
+}
+
+/**
+ * Update photo tags
+ */
+export async function updatePhotoTags(
+  photoId: string,
+  familyId: string,
+  tags: string[],
+  action: "set" | "add" | "remove" = "set"
+): Promise<{ photo: Photo | null; error: string | null }> {
+  // First verify the photo exists and belongs to the family
+  const { data: existingPhoto, error: fetchError } = await supabase
+    .from("photos")
+    .select("id, tags")
+    .eq("id", photoId)
+    .eq("family_id", familyId)
+    .single();
+
+  if (fetchError || !existingPhoto) {
+    return { photo: null, error: "写真が見つかりませんでした" };
+  }
+
+  let newTags: string[];
+
+  switch (action) {
+    case "set":
+      // Replace all tags
+      newTags = [...new Set(tags)]; // Remove duplicates
+      break;
+    case "add":
+      // Add new tags to existing ones
+      const currentTags = existingPhoto.tags || [];
+      newTags = [...new Set([...currentTags, ...tags])]; // Merge and remove duplicates
+      break;
+    case "remove":
+      // Remove specified tags
+      const tagsToRemove = new Set(tags);
+      newTags = (existingPhoto.tags || []).filter(
+        (tag: string) => !tagsToRemove.has(tag)
+      );
+      break;
+  }
+
+  // Update the photo
+  const { data: photo, error: updateError } = await supabase
+    .from("photos")
+    .update({ tags: newTags, updated_at: new Date().toISOString() })
+    .eq("id", photoId)
+    .eq("family_id", familyId)
+    .select()
+    .single();
+
+  if (updateError) {
+    console.error("Error updating photo tags:", updateError);
+    return { photo: null, error: "タグの更新に失敗しました" };
+  }
+
+  return { photo, error: null };
+}
+
+/**
+ * Get all tags used by a family
+ */
+export async function getTagsByFamily(
+  familyId: string
+): Promise<{ tag: string; count: number }[]> {
+  const { data: photos, error } = await supabase
+    .from("photos")
+    .select("tags")
+    .eq("family_id", familyId);
+
+  if (error) {
+    console.error("Error fetching tags:", error);
+    return [];
+  }
+
+  // Aggregate tags and count occurrences
+  const tagCounts = new Map<string, number>();
+
+  photos?.forEach((photo) => {
+    const tags = photo.tags || [];
+    tags.forEach((tag: string) => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+    });
+  });
+
+  // Convert to array and sort by count (descending)
+  return Array.from(tagCounts.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count);
 }

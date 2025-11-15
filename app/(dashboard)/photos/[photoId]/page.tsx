@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { formatVideoDuration } from "@/lib/utils/video";
 
 // Dynamically import map component with SSR disabled
 const PhotoLocationMap = dynamic(
@@ -20,6 +21,16 @@ const PhotoLocationMap = dynamic(
   }
 );
 
+// Dynamically import video player with SSR disabled
+const VideoPlayer = dynamic(() => import("@/components/video/VideoPlayer"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+      <p className="text-gray-500">動画を読み込んでいます...</p>
+    </div>
+  ),
+});
+
 interface Photo {
   id: string;
   fileName: string;
@@ -31,6 +42,9 @@ interface Photo {
   tags: string[] | null;
   description: string | null;
   location: { latitude: number; longitude: number } | null;
+  mimeType: string | null;
+  videoDuration: number | null;
+  thumbnailPath: string | null;
 }
 
 interface PhotoDetailResponse {
@@ -52,6 +66,10 @@ export default function PhotoDetailPage() {
   const [nextPhotoId, setNextPhotoId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [newTag, setNewTag] = useState("");
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (session && photoId) {
@@ -90,6 +108,100 @@ export default function PhotoDetailPage() {
       router.push("/photos");
     }
   };
+
+  const handleAddTag = async () => {
+    if (!newTag.trim() || !photo) return;
+
+    setIsAddingTag(true);
+    try {
+      const response = await fetch(`/api/photos/${photoId}/tags`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tags: [newTag.trim()],
+          action: "add",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPhoto({ ...photo, tags: data.photo.tags });
+        setNewTag("");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "タグの追加に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error adding tag:", error);
+      alert("タグの追加中にエラーが発生しました");
+    } finally {
+      setIsAddingTag(false);
+    }
+  };
+
+  const handleRemoveTag = async (tagToRemove: string) => {
+    if (!photo) return;
+
+    try {
+      const response = await fetch(`/api/photos/${photoId}/tags`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tags: [tagToRemove],
+          action: "remove",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPhoto({ ...photo, tags: data.photo.tags });
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "タグの削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("Error removing tag:", error);
+      alert("タグの削除中にエラーが発生しました");
+    }
+  };
+
+  const handleTagClick = (tag: string) => {
+    router.push(`/search?tags=${encodeURIComponent(tag)}`);
+  };
+
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!photo) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/photos/${photoId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        // Redirect to gallery after successful deletion
+        router.push("/photos");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "写真の削除に失敗しました");
+        setIsDeleting(false);
+      }
+    } catch (error) {
+      console.error("Error deleting photo:", error);
+      alert("写真の削除中にエラーが発生しました");
+      setIsDeleting(false);
+    }
+  };
+
+  // All family members can delete photos
+  const canDelete = photo && session?.user?.familyId;
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -241,17 +353,21 @@ export default function PhotoDetailPage() {
       {/* Main content */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Photo display */}
+          {/* Photo/Video display */}
           <div className="lg:col-span-2">
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-100 shadow-lg">
-              <Image
-                src={photo.url}
-                alt={photo.fileName}
-                fill
-                className="object-contain"
-                sizes="(max-width: 1024px) 100vw, 66vw"
-                priority
-              />
+              {photo.mimeType?.startsWith("video/") ? (
+                <VideoPlayer url={photo.url} className="w-full h-full" />
+              ) : (
+                <Image
+                  src={photo.url}
+                  alt={photo.fileName}
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  priority
+                />
+              )}
             </div>
           </div>
 
@@ -259,12 +375,24 @@ export default function PhotoDetailPage() {
           <div className="space-y-6">
             {/* File info */}
             <div className="rounded-lg bg-white p-6 shadow">
-              <h2 className="text-lg font-semibold text-gray-900">写真情報</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {photo.mimeType?.startsWith("video/") ? "動画情報" : "写真情報"}
+              </h2>
               <dl className="mt-4 space-y-3">
                 <div>
                   <dt className="text-sm font-medium text-gray-500">ファイル名</dt>
                   <dd className="mt-1 text-sm text-gray-900 break-all">{photo.fileName}</dd>
                 </div>
+
+                {/* Video duration */}
+                {photo.mimeType?.startsWith("video/") && photo.videoDuration && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">⏱️ 再生時間</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {formatVideoDuration(photo.videoDuration)}
+                    </dd>
+                  </div>
+                )}
 
                 {/* 撮影日時（EXIF情報から取得） */}
                 {photo.takenAt && (
@@ -303,9 +431,19 @@ export default function PhotoDetailPage() {
 
                 {photo.width && photo.height && (
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">📐 サイズ</dt>
+                    <dt className="text-sm font-medium text-gray-500">📐 解像度</dt>
                     <dd className="mt-1 text-sm text-gray-900">
                       {photo.width} × {photo.height} px
+                    </dd>
+                  </div>
+                )}
+
+                {/* Media Type */}
+                {photo.mimeType && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">📁 形式</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {photo.mimeType.startsWith("video/") ? "動画" : "画像"} ({photo.mimeType})
                     </dd>
                   </div>
                 )}
@@ -321,21 +459,69 @@ export default function PhotoDetailPage() {
             )}
 
             {/* Tags */}
-            {photo.tags && photo.tags.length > 0 && (
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h2 className="text-lg font-semibold text-gray-900">タグ</h2>
-                <div className="mt-3 flex flex-wrap gap-2">
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">🏷️ タグ</h2>
+
+              {/* Existing Tags */}
+              {photo.tags && photo.tags.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
                   {photo.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800"
+                      className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800 cursor-pointer hover:bg-indigo-200 transition-colors group"
                     >
-                      {tag}
+                      <button
+                        onClick={() => handleTagClick(tag)}
+                        className="mr-1"
+                      >
+                        {tag}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-indigo-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="タグを削除"
+                      >
+                        <svg
+                          className="h-3 w-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </span>
                   ))}
                 </div>
+              )}
+
+              {/* Add Tag Input */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={handleTagInputKeyDown}
+                  placeholder="タグを追加（Enterで追加）"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  disabled={isAddingTag}
+                />
+                <button
+                  onClick={handleAddTag}
+                  disabled={!newTag.trim() || isAddingTag}
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {isAddingTag ? "追加中..." : "追加"}
+                </button>
               </div>
-            )}
+
+              <p className="mt-2 text-xs text-gray-500">
+                タグをクリックすると、そのタグで検索できます
+              </p>
+            </div>
 
             {/* Location Map */}
             {photo.location && (
@@ -370,6 +556,44 @@ export default function PhotoDetailPage() {
                 </div>
               </dl>
             </div>
+
+            {/* Delete button (only for uploader) */}
+            {canDelete && (
+              <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+                <h3 className="text-sm font-medium text-red-900 mb-2">写真の削除</h3>
+                <p className="text-xs text-red-700 mb-3">
+                  削除すると元に戻せません
+                </p>
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  >
+                    🗑️ 削除
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-red-900">本当に削除しますか？</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeletePhoto}
+                        disabled={isDeleting}
+                        className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:bg-red-300 disabled:cursor-not-allowed"
+                      >
+                        {isDeleting ? "削除中..." : "はい、削除します"}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={isDeleting}
+                        className="flex-1 rounded-md bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:cursor-not-allowed"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

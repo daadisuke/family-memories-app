@@ -1,22 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isVideoFile } from "@/lib/storage/photos";
+import { extractVideoMetadata, formatVideoDuration } from "@/lib/utils/video";
+import Image from "next/image";
+
+interface FileWithPreview extends File {
+  preview?: string;
+  isVideo?: boolean;
+  videoDuration?: number;
+}
 
 export default function UploadPage() {
   const router = useRouter();
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach((file) => {
+        if (file.preview) {
+          URL.revokeObjectURL(file.preview);
+        }
+      });
+    };
+  }, [selectedFiles]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      await processFiles(files);
       setError("");
     }
+  };
+
+  const processFiles = async (files: File[]) => {
+    const filesWithPreview: FileWithPreview[] = await Promise.all(
+      files.map(async (file) => {
+        const fileWithPreview = file as FileWithPreview;
+        fileWithPreview.preview = URL.createObjectURL(file);
+        fileWithPreview.isVideo = isVideoFile(file);
+
+        if (fileWithPreview.isVideo) {
+          try {
+            const metadata = await extractVideoMetadata(file);
+            fileWithPreview.videoDuration = metadata.duration || undefined;
+          } catch (error) {
+            console.error("Failed to extract video metadata:", error);
+          }
+        }
+
+        return fileWithPreview;
+      })
+    );
+
+    setSelectedFiles((prev) => [...prev, ...filesWithPreview]);
   };
 
   const handleRemoveFile = (index: number) => {
@@ -39,6 +82,25 @@ export default function UploadPage() {
       for (const file of selectedFiles) {
         const formData = new FormData();
         formData.append("file", file);
+
+        // If it's a video, extract and append metadata
+        if (file.isVideo) {
+          try {
+            const metadata = await extractVideoMetadata(file);
+            if (metadata.duration) {
+              formData.append("videoDuration", metadata.duration.toString());
+            }
+            if (metadata.width) {
+              formData.append("videoWidth", metadata.width.toString());
+            }
+            if (metadata.height) {
+              formData.append("videoHeight", metadata.height.toString());
+            }
+          } catch (error) {
+            console.error("Failed to extract video metadata for upload:", error);
+            // Continue with upload even if metadata extraction fails
+          }
+        }
 
         const response = await fetch("/api/photos/upload", {
           method: "POST",
@@ -66,11 +128,11 @@ export default function UploadPage() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files) {
       const files = Array.from(e.dataTransfer.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      await processFiles(files);
       setError("");
     }
   };
@@ -82,9 +144,9 @@ export default function UploadPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">写真をアップロード</h1>
+        <h1 className="text-3xl font-bold text-gray-900">写真・動画をアップロード</h1>
         <p className="mt-2 text-sm text-gray-600">
-          JPEG、PNG、WebP、HEIC形式の画像をアップロードできます（最大50MB）
+          画像（JPEG、PNG、WebP、HEIC、最大50MB）または動画（MP4、MOV、AVI、WebM、最大500MB）をアップロードできます
         </p>
       </div>
 
@@ -148,7 +210,7 @@ export default function UploadPage() {
                 type="file"
                 className="sr-only"
                 multiple
-                accept="image/*"
+                accept="image/*,video/mp4,video/quicktime,video/x-msvideo,video/webm"
                 onChange={handleFileSelect}
                 disabled={uploading}
               />
@@ -156,7 +218,8 @@ export default function UploadPage() {
             <p className="pl-1">または、ここにドラッグ&ドロップ</p>
           </div>
           <p className="text-xs text-gray-500">
-            JPEG, PNG, WebP, HEIC形式、最大50MB
+            画像: JPEG, PNG, WebP, HEIC（最大50MB）<br />
+            動画: MP4, MOV, AVI, WebM（最大500MB）
           </p>
         </div>
       </div>
@@ -166,29 +229,95 @@ export default function UploadPage() {
           <h2 className="mb-4 text-lg font-medium text-gray-900">
             選択されたファイル ({selectedFiles.length}件)
           </h2>
-          <ul className="divide-y divide-gray-200 rounded-md border border-gray-200">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {selectedFiles.map((file, index) => (
-              <li
+              <div
                 key={index}
-                className="flex items-center justify-between py-3 pl-3 pr-4 text-sm"
+                className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
               >
-                <div className="flex w-0 flex-1 items-center">
-                  <span className="ml-2 w-0 flex-1 truncate">{file.name}</span>
-                  <span className="ml-4 flex-shrink-0 text-gray-400">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </span>
+                {/* Preview */}
+                <div className="mb-3 aspect-video w-full overflow-hidden rounded-md bg-gray-100">
+                  {file.isVideo ? (
+                    <div className="relative h-full w-full">
+                      <video
+                        src={file.preview}
+                        className="h-full w-full object-cover"
+                        muted
+                      />
+                      {/* Play icon overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="bg-black bg-opacity-60 rounded-full p-3">
+                          <svg
+                            className="w-8 h-8 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                      {/* Duration badge */}
+                      {file.videoDuration && (
+                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                          {formatVideoDuration(file.videoDuration)}
+                        </div>
+                      )}
+                      {/* Video badge */}
+                      <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded font-medium">
+                        VIDEO
+                      </div>
+                    </div>
+                  ) : (
+                    <Image
+                      src={file.preview || ""}
+                      alt={file.name}
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
+
+                {/* File info */}
+                <div className="space-y-1">
+                  <p className="truncate text-sm font-medium text-gray-900">
+                    {file.name}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{file.isVideo ? "動画" : "画像"}</span>
+                    <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                  </div>
+                  {file.isVideo && file.videoDuration && (
+                    <p className="text-xs text-gray-500">
+                      長さ: {formatVideoDuration(file.videoDuration)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Remove button */}
                 <button
                   type="button"
                   onClick={() => handleRemoveFile(index)}
                   disabled={uploading}
-                  className="ml-4 flex-shrink-0 font-medium text-red-600 hover:text-red-500 disabled:opacity-50"
+                  className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1 text-white shadow-lg hover:bg-red-700 disabled:opacity-50"
+                  title="削除"
                 >
-                  削除
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 

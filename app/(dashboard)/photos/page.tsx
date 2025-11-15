@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatVideoDuration } from "@/lib/utils/video";
 
 interface Photo {
   id: string;
@@ -15,6 +16,14 @@ interface Photo {
   height: number | null;
   tags: string[] | null;
   description: string | null;
+  mimeType: string | null;
+  videoDuration: number | null;
+  thumbnailPath: string | null;
+}
+
+interface Tag {
+  tag: string;
+  count: number;
 }
 
 export default function PhotosPage() {
@@ -23,16 +32,26 @@ export default function PhotosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (session) {
       fetchPhotos();
+      fetchTags();
     }
-  }, [session]);
+  }, [session, selectedTags]);
 
   const fetchPhotos = async () => {
     try {
-      const response = await fetch("/api/photos?limit=50&sortBy=uploaded_at&order=desc");
+      let url = "/api/photos?limit=50&sortBy=uploaded_at&order=desc";
+
+      // Add tag filter if selected
+      if (selectedTags.length > 0) {
+        url = `/api/photos/search?tags=${selectedTags.join(",")}&limit=50&sortBy=uploaded_at&order=desc`;
+      }
+
+      const response = await fetch(url);
       const data = await response.json();
 
       if (!response.ok) {
@@ -46,6 +65,29 @@ export default function PhotosPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const response = await fetch("/api/tags");
+      const data = await response.json();
+
+      if (response.ok) {
+        setTags(data.tags || []);
+      }
+    } catch (err) {
+      console.error("Error fetching tags:", err);
+    }
+  };
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleClearTags = () => {
+    setSelectedTags([]);
   };
 
   if (isLoading) {
@@ -129,6 +171,11 @@ export default function PhotosPage() {
           <h1 className="text-3xl font-bold text-gray-900">写真ギャラリー</h1>
           <p className="mt-2 text-sm text-gray-600">
             {photos.length}枚の写真
+            {selectedTags.length > 0 && (
+              <span className="ml-2 text-indigo-600">
+                ({selectedTags.length}個のタグで絞り込み中)
+              </span>
+            )}
           </p>
         </div>
         <Link
@@ -139,22 +186,89 @@ export default function PhotosPage() {
         </Link>
       </div>
 
+      {/* Tag Filter */}
+      {tags.length > 0 && (
+        <div className="mb-6 rounded-lg bg-white p-4 shadow">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">🏷️ タグで絞り込み</h2>
+            {selectedTags.length > 0 && (
+              <button
+                onClick={handleClearTags}
+                className="text-xs text-indigo-600 hover:text-indigo-800"
+              >
+                クリア
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <button
+                key={tag.tag}
+                onClick={() => handleTagToggle(tag.tag)}
+                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                  selectedTags.includes(tag.tag)
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                }`}
+              >
+                {tag.tag}
+                <span className="ml-1.5 text-xs opacity-75">({tag.count})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {photos.map((photo) => (
-          <Link
-            key={photo.id}
-            href={`/photos/${photo.id}`}
-            className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 block"
-          >
-            <Image
-              src={photo.url}
-              alt={photo.fileName}
-              fill
-              className="object-cover transition-transform duration-200 group-hover:scale-105"
-              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-            />
-          </Link>
-        ))}
+        {photos.map((photo) => {
+          const isVideo = photo.mimeType?.startsWith("video/");
+
+          return (
+            <Link
+              key={photo.id}
+              href={`/photos/${photo.id}`}
+              className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 block"
+            >
+              <Image
+                src={photo.url}
+                alt={photo.fileName}
+                fill
+                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+              />
+
+              {/* Video Overlay */}
+              {isVideo && (
+                <>
+                  {/* Play Icon */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="bg-black bg-opacity-60 rounded-full p-3 transition-transform group-hover:scale-110">
+                      <svg
+                        className="w-8 h-8 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Duration Badge */}
+                  {photo.videoDuration && (
+                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded pointer-events-none">
+                      {formatVideoDuration(photo.videoDuration)}
+                    </div>
+                  )}
+
+                  {/* Video Badge */}
+                  <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded pointer-events-none font-medium">
+                    VIDEO
+                  </div>
+                </>
+              )}
+            </Link>
+          );
+        })}
       </div>
 
       {hasMore && (

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createPhoto } from "@/lib/db";
-import { uploadPhoto, validatePhotoFile } from "@/lib/storage/photos";
+import { uploadPhoto, validatePhotoFile, isVideoFile } from "@/lib/storage/photos";
 import { extractDateTaken, extractGPSLocation } from "@/lib/utils/exif";
 
 export async function POST(request: Request) {
@@ -42,11 +42,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extract EXIF metadata (撮影日と位置情報を取得)
-    const [takenAt, location] = await Promise.all([
-      extractDateTaken(file),
-      extractGPSLocation(file),
-    ]);
+    const isVideo = isVideoFile(file);
+
+    // Extract EXIF metadata for images only (撮影日と位置情報を取得)
+    let takenAt: string | null = null;
+    let location: { latitude: number; longitude: number } | null = null;
+
+    if (!isVideo) {
+      const results = await Promise.all([
+        extractDateTaken(file),
+        extractGPSLocation(file),
+      ]);
+      takenAt = results[0];
+      location = results[1];
+    }
+
+    // Get video metadata from FormData if it's a video
+    // (Client will send these in the FormData)
+    const videoDuration = isVideo ? formData.get("videoDuration") : null;
+    const videoWidth = isVideo ? formData.get("videoWidth") : null;
+    const videoHeight = isVideo ? formData.get("videoHeight") : null;
 
     // Upload to storage
     const { path, error: uploadError } = await uploadPhoto(
@@ -62,7 +77,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create photo record in database
+    // Create photo/video record in database
     const { photo, error: dbError } = await createPhoto({
       userId: session.user.id,
       familyId: session.user.familyId,
@@ -72,6 +87,10 @@ export async function POST(request: Request) {
       mimeType: file.type,
       takenAt: takenAt || undefined, // EXIFから取得した撮影日、取得できない場合はundefined
       location: location || undefined, // EXIFから取得した位置情報、取得できない場合はundefined
+      // Video metadata
+      videoDuration: videoDuration ? parseInt(videoDuration as string) : undefined,
+      width: videoWidth ? parseInt(videoWidth as string) : undefined,
+      height: videoHeight ? parseInt(videoHeight as string) : undefined,
     });
 
     if (dbError || !photo) {

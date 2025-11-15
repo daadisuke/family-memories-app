@@ -172,6 +172,107 @@
   - ステータス: 完了
   - 備考: exifr@7.1.3をインストール。lib/utils/exif.tsにextractDateTaken関数とextractGPSLocation関数（今後の実装用）を実装。app/api/photos/upload/route.tsでEXIF撮影日抽出処理追加。lib/db/photos.tsのCreatePhotoDataインターフェースを修正（takenAtがstring | Date型を受け付けるように）。EXIF取得失敗時はuploaded_atがデフォルト値として使用される。ビルド成功（15ページ）
 
+### 動画アップロード・再生機能
+
+- [x] **動画アップロード基盤実装**
+  - [x] 動画ファイル形式サポート（MP4, MOV, AVI, WebM）
+  - [x] ファイルサイズ制限設定（画像: 最大50MB、動画: 最大500MB）
+  - [x] 動画メタデータ抽出ユーティリティ作成（lib/utils/video.ts）
+  - [x] データベーススキーマ拡張マイグレーション作成（docs/sql/migrations/004_add_video_support.sql）
+  - [x] lib/storage/photos.ts: validatePhotoFile関数を拡張（動画対応）
+  - [x] lib/db/photos.ts: Photo/CreatePhotoDataインターフェース拡張（video_duration, video_codec, thumbnail_path追加）
+  - [ ] app/api/photos/upload/route.ts: 動画メタデータ抽出・サムネイル生成統合（未実装）
+  - 担当者: Claude
+  - ステータス: ⚠️ 部分完了 (2025-11-15)
+  - 実装済み:
+    - バリデーション: MP4/MOV/AVI/WebM対応、500MB上限
+    - 動画メタデータ抽出関数（duration, width, height）
+    - サムネイル生成関数（最初のフレームからJPEG生成）
+    - データベーススキーマ拡張（video_duration, video_codec, thumbnail_path）
+    - isVideoFile()ヘルパー関数
+  - 未実装:
+    - アップロードAPIでの動画メタデータ抽出・サムネイル生成統合
+    - サムネイルのStorage自動アップロード
+  - 備考: photosテーブルは写真と動画の両方を格納（mime_typeで判別）。サムネイル生成は lib/utils/video.ts の generateVideoThumbnail() で実装済み（クライアントサイド処理）
+
+- [x] **動画アップロードUI実装**
+  - [x] app/(dashboard)/upload/page.tsx: 動画ファイル選択対応
+  - [x] 動画プレビュー表示（アップロード前）
+  - [x] アップロード進捗表示（大容量ファイル対応）
+  - [x] 動画情報表示（ファイルサイズ、長さ、形式）
+  - [x] app/api/photos/upload/route.ts: 動画メタデータ受信・保存
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - ファイル選択でMP4/MOV/AVI/WebM対応（accept属性追加）
+    - processFiles関数でファイル選択時に動画メタデータ抽出
+    - グリッドレイアウトでファイルプレビュー表示（動画/画像を区別）
+    - 動画プレビューに再生アイコン、VIDEOバッジ、長さ表示
+    - 画像プレビューはNext.js Imageコンポーネント使用
+    - FileWithPreviewインターフェースでpreview URL, isVideo, videoDuration管理
+    - アップロード時に動画メタデータをFormDataに追加（videoDuration, videoWidth, videoHeight）
+    - APIで動画判定し、画像の場合のみEXIF抽出実行
+    - 動画の場合はFormDataから受信したメタデータをDBに保存
+  - 備考: ドラッグ&ドロップで動画も受け付け可能。プレビューURLのクリーンアップ実装済み。アップロード中のキャンセル機能は未実装（今後検討）
+
+- [x] **動画再生機能実装（基本実装完了）**
+  - [x] 動画プレーヤーコンポーネント作成（components/video/VideoPlayer.tsx）
+  - [x] HTML5 video要素使用
+  - [x] 再生コントロール（標準ブラウザコントロール使用）
+  - [x] レスポンシブ対応（モバイル/デスクトップ）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - HTML5 videoタグベースのシンプルなプレーヤー
+    - controls属性で標準コントロール表示
+    - poster属性でサムネイル表示対応
+    - autoPlay, muted props対応
+    - レスポンシブ対応（maxWidth: 100%, maxHeight: 80vh）
+  - 備考: 外部ライブラリ不使用（ネイティブHTML5 video）。カスタムコントロールが必要な場合は react-player 等の導入を検討
+
+- [x] **ギャラリーでの動画表示**
+  - [x] app/(dashboard)/photos/page.tsx: 動画サムネイル表示
+  - [x] 動画アイコン/バッジ表示（写真と区別）
+  - [x] 動画の長さ表示（サムネイル上にオーバーレイ）
+  - [x] app/api/photos/route.ts: mimeType, videoDuration, thumbnailPath追加
+  - [ ] 動画と写真のフィルタリング機能（未実装）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - 動画サムネイルに再生アイコン（黒背景の三角形、ホバー時に拡大）
+    - 動画の長さを右下に表示（formatVideoDuration使用）
+    - 左上に「VIDEO」バッジ表示（インディゴ背景）
+    - Photo interfaceにmimeType, videoDuration, thumbnailPath追加
+    - APIレスポンスに動画メタデータ追加
+  - 備考: サムネイルに再生ボタンアイコンと動画長さ（例: 1:23）を表示。フィルタリング機能は今後実装予定
+
+- [x] **動画詳細ページ実装**
+  - [x] app/(dashboard)/photos/[photoId]/page.tsx: 動画再生対応
+  - [x] 動画プレーヤー統合
+  - [x] 動画メタデータ表示（長さ、解像度、形式）
+  - [x] app/api/photos/[photoId]/route.ts: mimeType, videoDuration, thumbnailPath追加
+  - [ ] 動画ダウンロード機能（未実装）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - mime_typeで写真/動画を判別し表示切り替え
+    - 動画の場合はVideoPlayerコンポーネントを表示
+    - メタデータセクションのタイトルを「動画情報」に変更
+    - 再生時間を表示（formatVideoDuration使用）
+    - 解像度（width × height）表示
+    - 形式（mime_type）表示
+    - Photo interfaceにmimeType, videoDuration, thumbnailPath追加
+  - 備考: 動画と写真で同じページを使用、条件分岐で表示を切り替え。ダウンロード機能は今後実装予定
+
+- [ ] **動画圧縮・最適化（将来拡張）**
+  - [ ] サーバーサイド動画変換（ffmpeg）
+  - [ ] WebM/H.264形式への変換
+  - [ ] 複数解像度生成（360p, 720p, 1080p）
+  - [ ] アダプティブストリーミング対応
+  - 担当者: Claude
+  - ステータス: Phase 3-4予定
+  - 備考: Vercel Edgeでは動画処理困難なため、別サーバー（AWS Lambda, Cloud Run等）で処理
+
 ### 写真ギャラリー表示
 
 - [x] **写真一覧API実装**
@@ -291,6 +392,88 @@
   - 担当者: Claude
   - ステータス: 完了
   - 備考: app/(dashboard)/search/page.tsxで検索ページ実装完了。キーワード入力（Enter対応）、タグ入力（カンマ区切り）、日付範囲ピッカー（from/to）、検索・クリアボタン実装。URLクエリパラメータからの自動検索対応。検索結果グリッド表示（レスポンシブ2-5列）、写真にタグバッジ表示、結果件数・検索条件表示、空状態（初期・検索結果なし）実装。Suspense境界でuseSearchParams()ラップ。app/(dashboard)/layout.tsxのナビゲーションに検索リンク追加（🔍アイコン）。ビルド成功（15ページ）
+
+### 写真タグ管理機能
+
+- [x] **タグ追加・編集・削除API実装**
+  - [x] 写真にタグ追加API（PATCH /api/photos/[photoId]/tags）
+  - [x] タグ削除API（同じエンドポイント、配列操作）
+  - [x] 複数タグ一括追加対応
+  - [x] バリデーション（タグ名の長さ、特殊文字制限）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/api/photos/[photoId]/tags/route.tsでタグ管理APIエンドポイント実装。actionパラメータ（set/add/remove）で操作を切り替え。lib/db/photos.tsにupdatePhotoTags関数追加（重複排除、配列操作）。バリデーション実装（1-50文字、日本語・英数字・スペース・ハイフン・アンダースコア許可）。family_idによるアクセス制御。ビルド成功（17ページ）
+
+- [x] **写真詳細ページにタグ編集UI実装**
+  - [x] タグ入力フィールド追加（app/(dashboard)/photos/[photoId]/page.tsx）
+  - [x] 既存タグ表示とクリックで削除機能
+  - [x] タグ追加ボタン（Enter対応）
+  - [x] タグ保存時のリアルタイム更新
+  - [x] タグクリックで検索ページへ遷移（クイック検索）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: 写真詳細ページにタグセクション追加。既存タグにホバーで×ボタン表示、クリックで削除。タグ入力欄＋追加ボタン実装（Enter対応、disabled状態管理）。タグクリックで/search?tags=タグ名にルーティング。リアルタイム更新（API呼び出し後、即座にUI反映）。フィードバックメッセージ（追加中...、エラー時はalert）実装
+
+- [x] **ギャラリーページにタグフィルター実装**
+  - [x] タグフィルター追加（app/(dashboard)/photos/page.tsx）
+  - [x] 使用中のタグ一覧取得API（GET /api/tags）
+  - [x] タグ選択でギャラリーを絞り込み表示
+  - [x] 複数タグ選択対応（AND条件）
+  - 担当者: Claude
+  - ステータス: 完了
+  - 備考: app/api/tags/route.tsでタグ一覧APIエンドポイント実装。lib/db/photos.tsにgetTagsByFamily関数追加（使用頻度順ソート、カウント付き）。ギャラリーページにタグフィルターセクション追加（クリックで選択/解除、選択中は青背景）。タグカウント表示（例: 旅行 (15)）。複数タグ選択時は既存の検索APIを使用（AND条件）。クリアボタン実装。絞り込み状態表示（「3個のタグで絞り込み中」）。ビルド成功（17ページ）
+
+- [ ] **タグ管理ページ実装（将来拡張）**
+  - [ ] 全タグ一覧表示（app/(dashboard)/tags/page.tsx）
+  - [ ] タグのリネーム機能（一括更新）
+  - [ ] タグのマージ機能（複数タグを統合）
+  - [ ] 使用されていないタグの削除
+  - [ ] タグ使用統計表示
+  - 担当者: Claude
+  - ステータス: Phase 3-4予定
+  - 備考: 管理者のみアクセス可能。タグの正規化と整理に使用
+
+### 写真削除機能
+
+- [x] **写真削除API実装**
+  - [x] DELETE /api/photos/[photoId] エンドポイント作成
+  - [x] 権限チェック（家族メンバー全員が削除可能）
+  - [x] Supabase Storageからファイル削除（lib/storage/photos.ts: deletePhotoFromStorage関数は既存）
+  - [x] データベースから写真レコード削除（lib/db/photos.ts: deletePhoto関数）
+  - [x] エラーハンドリング（ストレージ削除失敗時はログ記録、DBレコードは削除済み）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - app/api/photos/[photoId]/route.ts: DELETE ハンドラー実装
+    - lib/db/photos.ts: deletePhoto関数実装（familyId検証のみ）
+    - lib/storage/photos.ts: deletePhotoFromStorage関数は既存で利用可能
+    - エラーハンドリング: 404 (写真なし), 500 (サーバーエラー)
+    - 家族メンバー全員が削除権限を持つ（家族グループの写真は家族全員で管理）
+
+- [x] **写真詳細ページに削除UI実装**
+  - [x] 削除ボタン追加（app/(dashboard)/photos/[photoId]/page.tsx）
+  - [x] 確認ダイアログ実装（「本当に削除しますか？」2段階確認）
+  - [x] 削除後のリダイレクト（ギャラリーページへ）
+  - [x] ローディング状態表示（削除中...）
+  - [x] エラーハンドリング（削除失敗時のalertメッセージ表示）
+  - [x] 権限チェック（canDelete: 家族メンバー全員に表示）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-15)
+  - 実装内容:
+    - 削除セクション: キーボードショートカットの下に赤いボーダーで配置
+    - 2段階確認: 「削除」ボタンクリック → 「はい、削除します」「キャンセル」表示
+    - 家族メンバー全員に削除ボタンが表示される
+    - 削除成功時は /photos へリダイレクト
+
+- [ ] **ギャラリーページに一括削除機能実装（将来拡張）**
+  - [ ] 写真選択モード（チェックボックス表示）
+  - [ ] 複数写真選択機能
+  - [ ] 一括削除ボタン
+  - [ ] 一括削除API（DELETE /api/photos/bulk）
+  - [ ] 削除進捗表示
+  - 担当者: Claude
+  - ステータス: Phase 3-4予定
+  - 備考: 選択モード切り替えボタン。管理者のみ一括削除可能。削除確認ダイアログに選択枚数表示
 
 ### 位置情報・マップ表示機能
 

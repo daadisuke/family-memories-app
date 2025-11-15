@@ -50,6 +50,9 @@ export async function GET(request: Request) {
           height: photo.height,
           tags: photo.tags,
           description: photo.description,
+          mimeType: photo.mime_type,
+          videoDuration: photo.video_duration,
+          thumbnailPath: photo.thumbnail_path,
         };
       })
     );
