@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isVideoFile } from "@/lib/storage/photos";
+import { isVideoFile } from "@/lib/utils/file-validation";
 import { extractVideoMetadata, formatVideoDuration } from "@/lib/utils/video";
 import Image from "next/image";
 
