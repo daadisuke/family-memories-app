@@ -93,21 +93,35 @@ export default function UploadPage() {
           throw new Error(validation.error);
         }
 
-        // Generate unique filename and storage path
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const storagePath = `${session.user.familyId}/${session.user.id}/${fileName}`;
+        // Get signed upload URL from server
+        const urlResponse = await fetch("/api/photos/upload-url-signed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+          }),
+        });
 
-        // Upload directly to Supabase Storage from client
-        const { error: uploadError } = await supabaseClient.storage
-          .from("photos")
-          .upload(storagePath, file, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+        if (!urlResponse.ok) {
+          const data = await urlResponse.json();
+          throw new Error(data.message || "アップロード準備に失敗しました");
+        }
 
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
+        const { signedUrl, storagePath } = await urlResponse.json();
+
+        // Upload file using signed URL
+        const uploadResponse = await fetch(signedUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+            "x-upsert": "false",
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          console.error("Upload error:", uploadResponse.status, uploadResponse.statusText);
           throw new Error("ファイルのアップロードに失敗しました");
         }
 
