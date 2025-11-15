@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isVideoFile } from "@/lib/utils/file-validation";
 import { extractVideoMetadata, formatVideoDuration } from "@/lib/utils/video";
-import Image from "next/image";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -268,11 +267,10 @@ export default function UploadPage() {
                       </div>
                     </div>
                   ) : (
-                    <Image
+                    <img
                       src={file.preview || ""}
                       alt={file.name}
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   )}
                 </div>
