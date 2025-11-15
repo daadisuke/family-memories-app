@@ -200,20 +200,22 @@
   - [x] 動画プレビュー表示（アップロード前）
   - [x] アップロード進捗表示（大容量ファイル対応）
   - [x] 動画情報表示（ファイルサイズ、長さ、形式）
-  - [x] app/api/photos/upload/route.ts: 動画メタデータ受信・保存
+  - [x] app/api/photos/upload-url-signed/route.ts: 署名付きアップロードURL生成
+  - [x] app/api/photos/upload-url/route.ts: 動画メタデータ受信・保存
   - 担当者: Claude
-  - ステータス: ✅ 完了 (2025-11-15)
+  - ステータス: ✅ 完了 (2025-11-16)
   - 実装内容:
     - ファイル選択でMP4/MOV/AVI/WebM対応（accept属性追加）
     - processFiles関数でファイル選択時に動画メタデータ抽出
     - グリッドレイアウトでファイルプレビュー表示（動画/画像を区別）
     - 動画プレビューに再生アイコン、VIDEOバッジ、長さ表示
-    - 画像プレビューはNext.js Imageコンポーネント使用
+    - 画像プレビューは<img>タグ使用（Blob URL対応）
     - FileWithPreviewインターフェースでpreview URL, isVideo, videoDuration管理
-    - アップロード時に動画メタデータをFormDataに追加（videoDuration, videoWidth, videoHeight）
-    - APIで動画判定し、画像の場合のみEXIF抽出実行
-    - 動画の場合はFormDataから受信したメタデータをDBに保存
-  - 備考: ドラッグ&ドロップで動画も受け付け可能。プレビューURLのクリーンアップ実装済み。アップロード中のキャンセル機能は未実装（今後検討）
+    - **署名付きアップロードURL方式で実装（Vercel 4.5MB制限対策）**
+    - サーバーで署名付きURLを生成し、クライアントから直接Supabase Storageへアップロード
+    - Storage RLS問題を署名付きURL方式で解決（サービスロールキー使用）
+    - アップロード後にメタデータのみAPIで送信しDB保存
+  - 備考: ドラッグ&ドロップで動画も受け付け可能。プレビューURLのクリーンアップ実装済み。署名付きURL方式により大容量動画ファイルのアップロードが可能
 
 - [x] **動画再生機能実装（基本実装完了）**
   - [x] 動画プレーヤーコンポーネント作成（components/video/VideoPlayer.tsx）
