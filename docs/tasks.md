@@ -546,34 +546,44 @@
   - 期限:
   - ステータス: 未着手
 
-### Claude AI連携
+### Google Gemini AI連携（無料枠使用）
 
-- [ ] **Claude API連携**
-  - [ ] Anthropic API設定
-  - [ ] 画像認識エンドポイント実装
-  - [ ] タグ生成ロジック実装
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **Google Gemini API連携**
+  - [x] @google/generative-ai パッケージインストール
+  - [x] GOOGLE_GEMINI_API_KEY 環境変数設定
+  - [x] lib/ai/gemini.ts: Gemini APIクライアント実装
+  - [x] generatePhotoTags関数: 画像からタグ生成
+  - [x] 日本語タグ対応プロンプト設計
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-30)
+  - 備考: Gemini 1.5 Flash使用（無料枠: 15 RPM、100万トークン/日）
 
 ### 自動タグ付け機能
 
-- [ ] **AIタグ付けAPI実装**
-  - [ ] app/api/ai/tag-photos/route.ts 作成
-  - [ ] FastAPI連携
-  - [ ] バックグラウンド処理（Queue）
-  - [ ] ジョブステータス管理
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **AIタグ付けAPI実装**
+  - [x] app/api/photos/[photoId]/process-ai/route.ts 作成
+  - [x] 画像URL取得 → Gemini API呼び出し → タグ保存
+  - [x] ai_processed フラグ更新
+  - [x] エラーハンドリング（API失敗時）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-30)
+  - 備考: 既存のupdatePhoto関数を活用
 
-- [ ] **AIタグ付けUI実装**
-  - [ ] 手動タグ付け開始ボタン
-  - [ ] 処理進捗表示
-  - [ ] タグ確認・編集UI
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **アップロード時自動AI処理**
+  - [x] app/api/photos/upload/route.ts: AI処理トリガー追加
+  - [x] app/api/photos/upload-url/route.ts: AI処理トリガー追加
+  - [x] 非同期処理（クライアントへの応答は即座に返す）
+  - [x] 動画ファイルはスキップ（画像のみ対象）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-30)
+  - 備考: バックグラウンドでAI処理を実行
+
+- [x] **AI処理状態UI実装**
+  - [x] app/(dashboard)/photos/[photoId]/page.tsx: AI処理状態表示
+  - [x] AI生成タグの表示
+  - [x] 処理中/完了ステータス表示
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-30)
 
 ### 人物認識機能
 

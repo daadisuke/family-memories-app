@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createPhoto } from "@/lib/db";
-import { uploadPhoto, validatePhotoFile, isVideoFile } from "@/lib/storage/photos";
+import { createPhoto, updatePhoto } from "@/lib/db";
+import { uploadPhoto, validatePhotoFile, isVideoFile, getPhotoUrl } from "@/lib/storage/photos";
 import { extractDateTaken, extractGPSLocation } from "@/lib/utils/exif";
+import { generatePhotoTags, isGeminiAvailable } from "@/lib/ai/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -100,6 +101,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Trigger AI processing asynchronously for images (not videos)
+    if (!isVideo && isGeminiAvailable()) {
+      // Run AI processing in background (don't await)
+      processPhotoWithAI(photo.id, path).catch((error) => {
+        console.error("Background AI processing failed:", error);
+      });
+    }
+
     return NextResponse.json(
       {
         photo: {
@@ -116,5 +125,28 @@ export async function POST(request: Request) {
       { error: "InternalServerError", message: "サーバーエラーが発生しました" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Process photo with AI in background
+ */
+async function processPhotoWithAI(photoId: string, storagePath: string) {
+  try {
+    const imageUrl = getPhotoUrl(storagePath);
+    const tags = await generatePhotoTags(imageUrl);
+
+    if (tags.length > 0) {
+      await updatePhoto(photoId, {
+        tags: tags,
+        aiProcessed: true,
+      });
+      console.log(`AI tagging completed for photo ${photoId}:`, tags);
+    } else {
+      await updatePhoto(photoId, { aiProcessed: true });
+      console.log(`AI tagging completed for photo ${photoId}: no tags generated`);
+    }
+  } catch (error) {
+    console.error(`AI processing failed for photo ${photoId}:`, error);
   }
 }

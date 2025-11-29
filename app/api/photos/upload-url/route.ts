@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createPhoto } from "@/lib/db";
+import { generatePhotoTags, isGeminiAvailable } from "@/lib/ai/gemini";
+import { getPhotoUrl } from "@/lib/storage/photos";
+import { updatePhoto } from "@/lib/db/photos";
 
 /**
  * POST /api/photos/upload-url
@@ -65,6 +68,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Trigger AI processing asynchronously for images (not videos)
+    const isImage = mimeType && mimeType.startsWith("image/");
+    if (isImage && isGeminiAvailable()) {
+      // Run AI processing in background (don't await)
+      processPhotoWithAI(photo.id, storagePath).catch((error) => {
+        console.error("Background AI processing failed:", error);
+      });
+    }
+
     return NextResponse.json(
       {
         photo: {
@@ -81,5 +93,28 @@ export async function POST(request: Request) {
       { error: "InternalServerError", message: "サーバーエラーが発生しました" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Process photo with AI in background
+ */
+async function processPhotoWithAI(photoId: string, storagePath: string) {
+  try {
+    const imageUrl = getPhotoUrl(storagePath);
+    const tags = await generatePhotoTags(imageUrl);
+
+    if (tags.length > 0) {
+      await updatePhoto(photoId, {
+        tags: tags,
+        aiProcessed: true,
+      });
+      console.log(`AI tagging completed for photo ${photoId}:`, tags);
+    } else {
+      await updatePhoto(photoId, { aiProcessed: true });
+      console.log(`AI tagging completed for photo ${photoId}: no tags generated`);
+    }
+  } catch (error) {
+    console.error(`AI processing failed for photo ${photoId}:`, error);
   }
 }

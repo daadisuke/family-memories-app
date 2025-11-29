@@ -61,6 +61,8 @@ export async function GET(
         mimeType: photo.mime_type,
         videoDuration: photo.video_duration,
         thumbnailPath: photo.thumbnail_path,
+        aiProcessed: photo.ai_processed,
+        aiProcessedAt: photo.ai_processed_at,
       },
       previousPhotoId: previousId,
       nextPhotoId: nextId,
