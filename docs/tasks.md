@@ -530,13 +530,16 @@
 
 ### FastAPI セットアップ
 
-- [ ] **FastAPIプロジェクト作成**
-  - [ ] FastAPIプロジェクト初期化
-  - [ ] Docker設定
-  - [ ] 環境変数設定
-  - 担当者:
-  - 期限:
-  - ステータス: 未着手
+- [x] **FastAPIプロジェクト作成**
+  - [x] /backend フォルダ構造作成
+  - [x] FastAPIプロジェクト初期化（app/main.py）
+  - [x] 環境変数設定（.env.example）
+  - [x] requirements.txt作成
+  - [x] ヘルスチェックエンドポイント実装
+  - [ ] Docker設定（今後の実装予定）
+  - 担当者: Claude
+  - ステータス: ✅ 完了 (2025-11-30)
+  - 備考: /backend フォルダにFastAPIプロジェクト作成。Gemini APIタグ生成機能をNext.jsからFastAPIに移行。ローカル開発環境で動作確認済み
 
 - [ ] **FastAPIデプロイ**
   - [ ] Render/Railwayプロジェクト作成
@@ -545,6 +548,7 @@
   - 担当者:
   - 期限:
   - ステータス: 未着手
+  - 備考: ローカル開発完了後に対応予定
 
 ### Google Gemini AI連携（無料枠使用）
 
